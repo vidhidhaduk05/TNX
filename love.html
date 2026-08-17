@@ -4,74 +4,84 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Love Plot Generator — Covariate Balance Before/After PSM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
   :root {
-    --ink: #1a1a1a;
-    --muted: #666;
-    --line: #d8d8d8;
-    --accent: #1F8FE5;
-    --accent-dark: #1570b8;
+    --paper: #f9f7f1;
+    --paper-dark: #eae6da;
+    --ink: #2f2f2f;
+    --muted: #5a5a5a;
+    --line: #c4c0b6;
+    --rule: #2f2f2f;
+    --accent: #8b0000;
+    --accent-dark: #660000;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Source Sans 3', system-ui, sans-serif;
     color: var(--ink);
-    background: #fafafa;
+    background: var(--paper);
   }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  .sub { color: var(--muted); font-size: 13px; margin-bottom: 22px; }
+  h1 { font-family: 'Newsreader', Georgia, serif; font-size: 24px; font-weight: 700; margin: 0 0 4px; border-bottom: 2px solid var(--rule); padding-bottom: 6px; color: var(--ink); }
+  .sub { font-family: 'Merriweather', Georgia, serif; font-style: italic; color: var(--muted); font-size: 13px; margin-top: 6px; margin-bottom: 22px; }
   .card {
-    background: #fff;
+    background: #ffffff;
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: 0;
     padding: 18px 20px;
     margin-bottom: 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
   }
   .dropzone {
-    border: 2px dashed var(--line);
-    border-radius: 8px;
+    border: 2px dashed var(--rule);
+    border-radius: 0;
     padding: 30px 20px;
     text-align: center;
     color: var(--muted);
     font-size: 14px;
     cursor: pointer;
+    background: #fdfcf9;
     transition: border-color .15s, background .15s;
   }
-  .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: #f4faff; }
+  .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: var(--paper-dark); }
   .dropzone strong { color: var(--ink); }
   input[type=file] { display: none; }
   .row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; }
   .field { flex: 1 1 320px; }
-  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; font-family: 'Source Sans 3', sans-serif; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
   .field input[type=text] {
     width: 100%; padding: 8px 10px; font-size: 13px;
-    border: 1px solid var(--line); border-radius: 6px;
+    border: 1px solid var(--line); border-radius: 0; background: #ffffff; color: var(--ink);
   }
+  .field input[type=text]:focus { border-color: var(--accent); outline: none; }
   .btns { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
   button {
-    font-size: 13px; padding: 8px 16px; border-radius: 6px; cursor: pointer;
-    border: 1px solid var(--line); background: #fff; color: var(--ink);
+    font-family: 'Source Sans 3', sans-serif; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 16px; border-radius: 0; cursor: pointer;
+    border: 1px solid var(--rule); background: #ffffff; color: var(--ink);
   }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  button.primary:hover { background: var(--accent-dark); }
+  button:hover { background: var(--paper-dark); color: var(--accent); }
+  button.primary { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); color: #ffffff; }
   button:disabled { opacity: .45; cursor: not-allowed; }
   #err {
-    display: none; background: #fdecea; border: 1px solid #f5c6c0; color: #a33;
-    padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 18px;
+    display: none; background: #fdecea; border: 1px solid #f5c6c0; color: var(--accent);
+    padding: 10px 14px; border-radius: 0; font-size: 13px; margin-bottom: 18px;
   }
   #diag { display: none; font-size: 13px; }
   #diag .stats { color: var(--muted); margin-bottom: 10px; line-height: 1.6; }
   #diag table { border-collapse: collapse; width: 100%; font-size: 12px; }
   #diag th, #diag td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; }
-  #diag th { background: #f2f2f2; }
+  #diag th { background: var(--paper-dark); font-weight: 600; }
   #diag td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .tablewrap { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; }
+  .tablewrap { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 0; }
   #plotcard { display: none; }
   #plotwrap { overflow-x: auto; }
   #plotwrap svg { display: block; height: auto; }
-  .foot { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  .foot { color: var(--muted); font-size: 12px; margin-top: 8px; font-family: 'Source Sans 3', sans-serif; }
 </style>
 </head>
 <body>
@@ -83,20 +93,11 @@
 
   <div class="card">
     <div class="dropzone" id="dz">
-      <strong>Drop your Table 1 .docx file(s) here</strong> or click to browse.<br>
-      Supports raw TriNetX export files (.docx) and manuscript drafts (.docx).
+      <strong>Drop your Table 1 .docx here</strong> or click to browse.<br>
+      Supports Baseline Table (.docx) and manuscript drafts (.docx).
     </div>
-    <input type="file" id="file" accept=".docx" multiple>
-    <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-      <span style="font-size:12.5px; font-weight:600; color:#555;">Quick Load Samples:</span>
-      <button id="btnLoad3Exports" style="padding:4px 10px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f6f6f6; cursor:pointer;">📁 Load 3 Comparison Exports (90d)</button>
-      <button id="btnLoadManuscript" style="padding:4px 10px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f6f6f6; cursor:pointer;">📄 Load Manuscript Draft (5-Year)</button>
-    </div>
-    <div id="fileselectwrap" style="margin-top:12px; display:none; align-items:center; gap:8px;">
-      <label for="fileselect" style="font-size:13px; font-weight:600;">Active File / Table:</label>
-      <select id="fileselect" style="padding:5px 10px; font-size:13px; border-radius:4px; border:1px solid #ccc; max-width:400px;"></select>
-    </div>
-    <div class="row" style="margin-top:14px;">
+    <input type="file" id="file" accept=".docx">
+    <div class="row">
       <div class="field">
         <label for="title">Title (first line)</label>
         <input type="text" id="title" value="Supplemental Figure 1: Covariate balance before and after propensity score matching">
@@ -116,13 +117,8 @@
 
   <div class="card" id="diag">
     <div class="stats" id="diagstats"></div>
-    <div style="margin-bottom:8px; display:flex; gap:10px; align-items:center;">
-      <button id="selAll" style="font-size:12px; padding:4px 10px; border-radius:5px; border:1px solid #ccc; background:#f6f6f6; cursor:pointer;">Select All</button>
-      <button id="deselAll" style="font-size:12px; padding:4px 10px; border-radius:5px; border:1px solid #ccc; background:#f6f6f6; cursor:pointer;">Deselect All</button>
-      <span id="selCount" style="font-size:12px; color:#666;"></span>
-    </div>
     <div class="tablewrap"><table id="diagtable">
-      <thead><tr><th style="width:30px;"><input type="checkbox" id="toggleAll" checked></th><th>Covariate</th><th>ASD before PSM</th><th>ASD after PSM</th><th></th></tr></thead>
+      <thead><tr><th style="width:34px;text-align:center;"><input type="checkbox" id="toggleAll" checked title="Select / Deselect All" style="cursor:pointer;transform:scale(1.15);"></th><th>Covariate</th><th>ASD before PSM</th><th>ASD after PSM</th><th></th></tr></thead>
       <tbody></tbody>
     </table></div>
   </div>
@@ -612,7 +608,6 @@ function buildPlotSvg(rows, title, subtitle) {
 }
 
 // ---------- App wiring ----------
-let loadedFilesList = []; // [{name, buf, data}]
 let parsedData = null;   // {rows, stats, log}
 let currentSvg = null;
 
@@ -625,170 +620,89 @@ function showError(msg) {
 }
 function clearError() { errBox.style.display = "none"; }
 
-async function handleFiles(fileList) {
+async function handleFile(file) {
   clearError();
-  if (!fileList || !fileList.length) return;
-  $("fileinfo").textContent = "Loading file(s)…";
-  loadedFilesList = [];
-  const select = $("fileselect");
-  select.innerHTML = "";
-
-  for (let i = 0; i < fileList.length; i++) {
-    const f = fileList[i];
-    if (!/\.docx$/i.test(f.name)) continue;
-    try {
-      const buf = await f.arrayBuffer();
-      const tables = await lpReadDocxTables(buf);
-      const t = lpPickTable(tables);
-      const data = lpParseTable1(t);
-      if (data && data.rows.length) {
-        loadedFilesList.push({ name: f.name, data });
-        const opt = document.createElement("option");
-        opt.value = loadedFilesList.length - 1;
-        opt.textContent = f.name;
-        select.appendChild(opt);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  if (!loadedFilesList.length) {
-    showError("No valid Table 1 covariate rows could be parsed from the selected .docx file(s).");
-    parsedData = null;
-    $("render").disabled = true;
-    $("fileselectwrap").style.display = "none";
+  if (!file) return;
+  if (!/\.docx$/i.test(file.name)) {
+    showError("Please upload a .docx file (Word document). Other formats are not supported.");
     return;
   }
-
-  if (loadedFilesList.length > 1) {
-    $("fileselectwrap").style.display = "flex";
-  } else {
-    $("fileselectwrap").style.display = "none";
-  }
-
-  selectActiveFile(0);
-}
-
-function selectActiveFile(idx) {
-  if (!loadedFilesList[idx]) return;
-  parsedData = loadedFilesList[idx].data;
-  $("fileinfo").textContent = `Loaded: ${loadedFilesList[idx].name}`;
-  renderDiagnostics();
-  $("render").disabled = false;
-  renderPlot();
-}
-
-$("fileselect").addEventListener("change", (e) => {
-  selectActiveFile(+e.target.value);
-});
-
-async function loadSampleFiles(urls) {
-  clearError();
-  $("fileinfo").textContent = "Loading sample files…";
-  loadedFilesList = [];
-  const select = $("fileselect");
-  select.innerHTML = "";
-
-  for (const u of urls) {
-    const fn = u.split('/').pop();
-    try {
-      const res = await fetch(u);
-      if (!res.ok) continue;
-      const buf = await res.arrayBuffer();
-      const tables = await lpReadDocxTables(buf);
-      const t = lpPickTable(tables);
-      const data = lpParseTable1(t);
-      if (data && data.rows.length) {
-        loadedFilesList.push({ name: fn, data });
-        const opt = document.createElement("option");
-        opt.value = loadedFilesList.length - 1;
-        opt.textContent = fn;
-        select.appendChild(opt);
-      }
-    } catch (e) {
-      console.error(e);
+  $("fileinfo").textContent = `Loaded: ${file.name} (${(file.size/1024).toFixed(0)} KB) — parsing…`;
+  try {
+    const buf = await file.arrayBuffer();
+    const tables = await lpReadDocxTables(buf);
+    const t = lpPickTable(tables);
+    parsedData = lpParseTable1(t);
+    if (!parsedData.rows.length) {
+      showError("No covariate rows could be parsed from the detected Table 1. Nothing to plot.");
+      parsedData = null;
+      return;
     }
-  }
-
-  if (!loadedFilesList.length) {
-    showError("Could not parse sample file(s).");
+    $("fileinfo").textContent = `Loaded: ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
+    renderDiagnostics();
+    $("render").disabled = false;
+    renderPlot();
+  } catch (e) {
+    console.error(e);
+    showError("Parse error: " + e.message);
     parsedData = null;
     $("render").disabled = true;
-    $("fileselectwrap").style.display = "none";
-    return;
   }
-
-  if (loadedFilesList.length > 1) {
-    $("fileselectwrap").style.display = "flex";
-  } else {
-    $("fileselectwrap").style.display = "none";
-  }
-
-  selectActiveFile(0);
-}
-
-$("btnLoad3Exports").addEventListener("click", () => {
-  loadSampleFiles([
-    'samples/PLT__100__MM_vs_MMAE_202607261353.docx',
-    'samples/PLT__100__Sx_vs_MMAE_202607261455.docx',
-    'samples/PLT__100__Sx_vs_Sx_+_MMAE_202607261402.docx'
-  ]);
-});
-
-$("btnLoadManuscript").addEventListener("click", () => {
-  loadSampleFiles([
-    'samples/Manuscript_R1_Clean copy.docx'
-  ]);
-});
-
-function updateSelCount() {
-  const boxes = document.querySelectorAll(".cov-check");
-  const checked = document.querySelectorAll(".cov-check:checked").length;
-  $("selCount").textContent = `${checked} / ${boxes.length} selected`;
-  // sync header toggle
-  $("toggleAll").checked = (checked === boxes.length);
-  $("toggleAll").indeterminate = (checked > 0 && checked < boxes.length);
 }
 
 function getSelectedRows() {
-  if (!parsedData) return [];
-  const boxes = document.querySelectorAll(".cov-check");
+  if (!parsedData || !parsedData.rows) return [];
+  const checks = document.querySelectorAll(".cov-check");
+  if (!checks.length) return parsedData.rows;
   const selected = [];
-  boxes.forEach((cb, i) => { if (cb.checked) selected.push(parsedData.rows[i]); });
+  checks.forEach(cb => {
+    if (cb.checked) {
+      const idx = parseInt(cb.getAttribute("data-idx"), 10);
+      if (parsedData.rows[idx]) {
+        selected.push(parsedData.rows[idx]);
+      }
+    }
+  });
   return selected;
 }
 
-function renderDiagnostics() {
+function updateStatsText() {
+  if (!parsedData) return;
   const s = parsedData.stats;
+  const selectedCount = getSelectedRows().length;
   $("diagstats").innerHTML =
-    `<strong>${s.parsed}</strong> covariates plotted &nbsp;|&nbsp; ` +
+    `<strong>${selectedCount} of ${s.parsed}</strong> covariates selected/plotted &nbsp;|&nbsp; ` +
     `dropped: ${s.droppedFullWidth} section/footnote + ${s.droppedBlank} blank + ${s.droppedNoBefore} no-ASD &nbsp;|&nbsp; ` +
     `${s.nCollapsedNew} collapsed range group(s) &nbsp;|&nbsp; ${s.nHollow} masked post-PSM (hollow) &nbsp;|&nbsp; ` +
     `${s.nNormalized} ALL-CAPS label(s) normalized`;
+}
+
+function renderDiagnostics() {
   const tb = document.querySelector("#diagtable tbody");
   tb.innerHTML = "";
-  parsedData.rows.forEach((r, idx) => {
+  parsedData.rows.forEach((r, i) => {
     const tr = document.createElement("tr");
     const fmt = v => Number.isNaN(v) ? "—" : v.toFixed(3);
-    tr.innerHTML = `<td style="text-align:center;"><input type="checkbox" class="cov-check" data-idx="${idx}" checked></td><td></td><td class="num">${fmt(r.ASD_before)}</td><td class="num">${r.hollow ? "masked" : fmt(r.ASD_after)}</td><td>${r.hollow ? "◌ hollow" : ""}</td>`;
+    tr.innerHTML = `<td style="text-align:center;width:34px;"><input type="checkbox" class="cov-check" data-idx="${i}" checked style="cursor:pointer;transform:scale(1.15);"></td><td class="cov-label-td"></td><td class="num">${fmt(r.ASD_before)}</td><td class="num">${r.hollow ? "masked" : fmt(r.ASD_after)}</td><td>${r.hollow ? "◌ hollow" : ""}</td>`;
     tr.children[1].textContent = r.label;
     tb.appendChild(tr);
   });
-  // wire checkbox change → re-render plot
-  document.querySelectorAll(".cov-check").forEach(cb => {
-    cb.addEventListener("change", () => { updateSelCount(); renderPlot(); });
-  });
-  updateSelCount();
+  const toggleAll = $("toggleAll");
+  if (toggleAll) {
+    toggleAll.checked = true;
+    toggleAll.indeterminate = false;
+  }
+  updateStatsText();
   $("diag").style.display = "block";
 }
 
 function renderPlot() {
   if (!parsedData) return;
   const selectedRows = getSelectedRows();
-  if (selectedRows.length === 0) {
-    $("plotwrap").innerHTML = '<p style="color:#999;text-align:center;padding:40px;">No covariates selected. Check at least one to render the plot.</p>';
-    $("plotcard").style.display = "block";
+  if (!selectedRows.length) {
+    $("plotwrap").innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted);font-style:italic;">No covariates selected. Check at least one covariate above to display the Love plot.</div>';
+    $("dl_png").disabled = true;
+    $("dl_svg").disabled = true;
     return;
   }
   const title = $("title").value.trim() || "Love plot";
@@ -844,29 +758,29 @@ $("render").addEventListener("click", renderPlot);
 $("title").addEventListener("input", () => { if (parsedData) renderPlot(); });
 $("subtitle").addEventListener("input", () => { if (parsedData) renderPlot(); });
 
+$("diagtable").addEventListener("change", (e) => {
+  if (e.target.id === "toggleAll") {
+    const isChecked = e.target.checked;
+    document.querySelectorAll(".cov-check").forEach(cb => cb.checked = isChecked);
+  } else if (e.target.classList.contains("cov-check")) {
+    const allChecks = document.querySelectorAll(".cov-check");
+    const checkedChecks = document.querySelectorAll(".cov-check:checked");
+    const toggleAll = $("toggleAll");
+    if (toggleAll) {
+      toggleAll.checked = (allChecks.length > 0 && checkedChecks.length === allChecks.length);
+      toggleAll.indeterminate = (checkedChecks.length > 0 && checkedChecks.length < allChecks.length);
+    }
+  }
+  updateStatsText();
+  renderPlot();
+});
+
 const dz = $("dz"), fi = $("file");
 dz.addEventListener("click", () => fi.click());
-fi.addEventListener("change", e => handleFiles(e.target.files));
+fi.addEventListener("change", e => handleFile(e.target.files[0]));
 ["dragover", "dragenter"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add("drag"); }));
 ["dragleave", "drop"].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove("drag"); }));
-dz.addEventListener("drop", e => handleFiles(e.dataTransfer.files));
-
-// --- Checkbox controls ---
-$("selAll").addEventListener("click", () => {
-  document.querySelectorAll(".cov-check").forEach(cb => cb.checked = true);
-  updateSelCount();
-  renderPlot();
-});
-$("deselAll").addEventListener("click", () => {
-  document.querySelectorAll(".cov-check").forEach(cb => cb.checked = false);
-  updateSelCount();
-  renderPlot();
-});
-$("toggleAll").addEventListener("change", (e) => {
-  document.querySelectorAll(".cov-check").forEach(cb => cb.checked = e.target.checked);
-  updateSelCount();
-  renderPlot();
-});
+dz.addEventListener("drop", e => handleFile(e.dataTransfer.files[0]));
 </script>
 </body>
 </html>

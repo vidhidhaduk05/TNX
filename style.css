@@ -1,15 +1,23 @@
-/* style.css - pastel theme for the standalone site */
-
-/* Import Google Font */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+/* Newsprint Theme — Newspaper Style for Standalone Viewer */
+@import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap');
 
 :root {
-  --font-primary: 'Inter', sans-serif;
-  --bg-gradient: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%); /* very light pastel gradient */
-  --nav-bg: #ffffff;
-  --nav-hover: #e0f7fa;
-  --link-color: #33691e; /* tealish */
-  --link-hover: #1b5e20;
+  --color-paper: #f9f7f1;
+  --color-paper-dark: #eae6da;
+  --color-ink: #2f2f2f;
+  --color-ink-light: #5a5a5a;
+  --color-ink-faint: #8a8a8a;
+  --color-rule: #2f2f2f;
+  --color-rule-light: #c4c0b6;
+  --color-accent: #8b0000;
+  --color-link: #2f2f2f;
+  --color-link-hover: #8b0000;
+  --color-white: #ffffff;
+
+  --font-masthead: 'UnifrakturMaguntia', 'Newsreader', Georgia, serif;
+  --font-headline: 'Newsreader', Georgia, serif;
+  --font-body: 'Merriweather', Georgia, serif;
+  --font-sans: 'Source Sans 3', system-ui, -apple-system, sans-serif;
 }
 
 * {
@@ -19,42 +27,83 @@
 }
 
 body {
-  font-family: var(--font-primary);
-  background: var(--bg-gradient);
-  color: #212121;
+  font-family: var(--font-sans);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
   line-height: 1.5;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-header {
-  background: var(--nav-bg);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  position: sticky;
-  top: 0;
-  z-index: 1000;
+/* Masthead Header */
+header.masthead {
+  background: var(--color-paper);
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem 0;
+  width: 100%;
+  text-align: center;
 }
 
-nav {
+.masthead__title-wrap {
+  text-align: center;
+  margin-bottom: 0.4rem;
+}
+
+.masthead__title {
   display: flex;
   justify-content: center;
-  gap: 2rem;
-  padding: 0.75rem 1rem;
+  align-items: center;
+  margin: 0.2rem 0;
 }
 
-nav a {
-  color: var(--link-color);
+.masthead__logo {
+  height: 72px;
+  width: auto;
+  max-width: 100%;
+  display: block;
+  margin: 0 auto;
+  mix-blend-mode: multiply;
+  object-fit: contain;
+}
+
+nav.masthead__nav {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  border-top: 3px double var(--color-rule);
+  border-bottom: 1px solid var(--color-rule);
+  margin-top: 0.4rem;
+  padding: 0;
+  background: var(--color-paper);
+}
+
+nav.masthead__nav a {
+  color: var(--color-ink);
   text-decoration: none;
+  font-family: var(--font-sans);
   font-weight: 600;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.6rem 1.4rem;
+  border-right: 1px solid var(--color-rule-light);
+  transition: all 0.15s ease;
 }
 
-nav a:hover, nav a.active {
-  background: var(--nav-hover);
-  color: var(--link-hover);
+nav.masthead__nav a:first-child {
+  border-left: 1px solid var(--color-rule-light);
+}
+
+nav.masthead__nav a:hover {
+  color: var(--color-accent);
+  background: var(--color-paper-dark);
+}
+
+nav.masthead__nav a.active {
+  background: var(--color-ink);
+  color: var(--color-paper);
 }
 
 main {
@@ -62,22 +111,32 @@ main {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 1rem;
+  padding: 1.2rem;
+  background: var(--color-paper);
 }
 
 iframe {
   width: 100%;
-  max-width: 1200px;
-  height: 80vh;
-  border: none;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-  background: #fff;
+  max-width: 1240px;
+  height: 84vh;
+  border: 1px solid var(--color-rule-light);
+  border-radius: 0;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  background: var(--color-paper);
 }
 
-footer {
+footer.site-footer {
   text-align: center;
-  font-size: 0.9rem;
-  padding: 1rem;
-  color: #777;
+  padding: 0.6rem 1rem 0.8rem;
+  background: var(--color-paper);
+  border-top: 1px solid var(--color-rule-light);
+}
+
+.footer-credit {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 0.72rem;
+  color: var(--color-ink-faint);
+  opacity: 0.45;
+  letter-spacing: 0.05em;
 }

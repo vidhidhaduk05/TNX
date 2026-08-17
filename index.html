@@ -1,14 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TriNetX Standalone Viewer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
-  <header>
-    <nav>
+  <header class="masthead">
+    <div class="masthead__title-wrap">
+      <h1 class="masthead__title">
+        <img src="trinetx_logo.png" alt="TriNetX" class="masthead__logo" />
+      </h1>
+    </div>
+    <nav class="masthead__nav">
       <a href="#" class="nav-link active" data-page="table.html">Table View</a>
       <a href="#" class="nav-link" data-page="love.html">Love Plot</a>
       <a href="#" class="nav-link" data-page="outcome.html">Outcome Charts</a>
@@ -16,8 +28,11 @@
     </nav>
   </header>
   <main>
-    <iframe id="content-frame" src="table.html" title="Content" sandbox="allow-scripts allow-same-origin"></iframe>
+    <iframe id="content-frame" src="table.html" title="Content" sandbox="allow-scripts allow-same-origin allow-downloads allow-forms allow-modals allow-popups"></iframe>
   </main>
+  <footer class="site-footer">
+    <span class="footer-credit">Designed &amp; Developed by Vidhi Dhaduk</span>
+  </footer>
   <script>
     const links = document.querySelectorAll('.nav-link');
     const iframe = document.getElementById('content-frame');
@@ -34,4 +49,5 @@
     });
   </script>
 </body>
+
 </html>

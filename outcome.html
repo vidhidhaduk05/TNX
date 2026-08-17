@@ -6,49 +6,57 @@
 <title>TriNetX Outcome Bar Charts</title>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
   :root{
-    --c1:#1F8FE5; --c2:#FFA500; --ink:#222; --line:#ccc; --bg:#fff;
-    --ok:#1a7f37; --warn:#b25e09; --err:#b00020;
+    --paper:#f9f7f1; --paper-dark:#eae6da; --ink:#2f2f2f; --muted:#5a5a5a;
+    --line:#c4c0b6; --rule:#2f2f2f; --accent:#8b0000;
+    --c1:#1F8FE5; --c2:#FFA500; --bg:#ffffff;
+    --ok:#1a7f37; --warn:#b25e09; --err:#8b0000;
   }
   *{box-sizing:border-box}
-  body{font-family:"Liberation Sans",Arial,Helvetica,sans-serif;color:var(--ink);margin:0;background:#f6f7f8}
-  header{background:#0f1115;color:#fff;padding:14px 20px}
-  header h1{font-size:17px;margin:0;font-weight:600}
-  header p{margin:4px 0 0;font-size:12px;color:#c9d1d9}
+  body{font-family:"Source Sans 3",system-ui,sans-serif;color:var(--ink);margin:0;background:var(--paper)}
+  header{background:var(--paper);color:var(--ink);padding:18px 20px;border-bottom:2px solid var(--rule)}
+  header h1{font-family:"Newsreader",Georgia,serif;font-size:22px;margin:0;font-weight:700;color:var(--ink)}
+  header p{margin:4px 0 0;font-family:"Merriweather",Georgia,serif;font-style:italic;font-size:12px;color:var(--muted)}
   main{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
-  .card{background:var(--bg);border:1px solid #e3e6ea;border-radius:8px;padding:16px 18px;margin:14px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-  .card h2{font-size:14px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.04em;color:#444}
-  .drop{border:2px dashed #b9c2cc;border-radius:8px;padding:22px;text-align:center;color:#5b6470;background:#fbfcfd;cursor:pointer}
-  .drop.drag{background:#eef6ff;border-color:var(--c1)}
-  .drop input{display:none}
+  .card{background:var(--bg);border:1px solid var(--line);border-radius:0;padding:16px 18px;margin:14px 0;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .card h2{font-family:"Source Sans 3",sans-serif;font-size:14px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink);font-weight:700;border-bottom:1px solid var(--line);padding-bottom:4px}
+  .drop{display:block;width:100%;position:relative;box-sizing:border-box;border:2px dashed var(--rule);border-radius:0;padding:26px 20px;text-align:center;color:var(--muted);background:#fdfcf9;cursor:pointer;transition:background .15s,border-color .15s}
+  .drop:hover,.drop.drag{background:var(--paper-dark);border-color:var(--accent)}
+  input[type=file]{display:none !important}
   .row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
-  .field{display:flex;flex-direction:column;gap:4px;font-size:12px}
-  .field input[type=text]{padding:6px 8px;border:1px solid var(--line);border-radius:5px;font-size:13px;min-width:180px}
-  .btn{background:var(--c1);color:#fff;border:0;border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer}
-  .btn.ghost{background:#fff;color:var(--c1);border:1px solid var(--c1)}
+  .field{display:flex;flex-direction:column;gap:4px;font-size:12px;font-family:"Source Sans 3",sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .field input[type=text]{padding:6px 8px;border:1px solid var(--line);border-radius:0;font-size:13px;min-width:180px;background:#fff;color:var(--ink)}
+  .field input[type=text]:focus{border-color:var(--accent);outline:none}
+  .btn{background:var(--ink);color:var(--paper);border:1px solid var(--ink);border-radius:0;padding:8px 14px;font-family:"Source Sans 3",sans-serif;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;cursor:pointer}
+  .btn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--rule)}
+  .btn.ghost:hover{background:var(--paper-dark);color:var(--accent)}
   .btn:disabled{opacity:.5;cursor:default}
   table{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:6px}
-  th,td{border:1px solid #e3e6ea;padding:5px 7px;text-align:center}
-  th{background:#f0f2f5;font-weight:600}
+  th,td{border:1px solid var(--line);padding:5px 7px;text-align:center}
+  th{background:var(--paper-dark);font-weight:600}
   td.name{text-align:left;font-weight:600}
-  td input{width:64px;padding:3px 4px;border:1px solid transparent;border-radius:4px;text-align:center;font-size:12.5px;background:transparent}
-  td input:focus{border-color:var(--c1);background:#fff;outline:none}
+  td input{width:64px;padding:3px 4px;border:1px solid transparent;border-radius:0;text-align:center;font-size:12.5px;background:transparent;color:var(--ink)}
+  td input:focus{border-color:var(--accent);background:#fff;outline:none}
   td input.bad{border-color:var(--err);background:#fff5f5}
   .chk{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
-  .chk label{display:flex;gap:6px;align-items:center;font-size:13px;background:#f0f2f5;border:1px solid #e3e6ea;border-radius:20px;padding:5px 12px;cursor:pointer}
-  .msg{font-size:12.5px;margin-top:8px;padding:8px 10px;border-radius:6px;display:none}
+  .chk label{display:flex;gap:6px;align-items:center;font-size:13px;background:var(--paper-dark);border:1px solid var(--line);border-radius:0;padding:5px 12px;cursor:pointer}
+  .msg{font-size:12.5px;margin-top:8px;padding:8px 10px;border-radius:0;display:none}
   .msg.warn{display:block;background:#fff7ec;color:var(--warn);border:1px solid #ffd9a8}
   .msg.err{display:block;background:#fff1f2;color:var(--err);border:1px solid #ffc9d1}
   .msg.ok{display:block;background:#eefaf0;color:var(--ok);border:1px solid #bfe6c8}
   .charts{display:grid;grid-template-columns:1fr;gap:18px}
-  .chartbox{background:#fff;border:1px solid #e3e6ea;border-radius:8px;padding:14px}
-  .chartbox h3{font-size:13.5px;margin:0 0 8px}
+  .chartbox{background:#fff;border:1px solid var(--line);border-radius:0;padding:14px}
+  .chartbox h3{font-family:"Newsreader",Georgia,serif;font-size:15px;margin:0 0 8px;font-weight:700}
   .canvaswrap{position:relative;height:500px;max-width:755px;margin:0 auto}
   .dl{margin-top:10px}
-  .hint{font-size:12px;color:#6a7280;margin-top:6px}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px;font-family:"Merriweather",Georgia,serif;font-style:italic}
   .legend{display:flex;gap:18px;font-size:12.5px;margin:2px 0 0}
-  .sw{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .sw{display:inline-block;width:12px;height:12px;border-radius:0;margin-right:6px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -60,16 +68,11 @@
 
   <div class="card">
     <h2>1. Upload report or manuscript files</h2>
-    <label class="drop" id="drop">
-      <input type="file" id="file" accept=".docx" multiple>
+    <div class="drop" id="drop">
       <div><strong>Click to choose .docx files</strong> or drag them here</div>
       <div class="hint">Supports raw TriNetX export files (.docx) and manuscript drafts (.docx) with embedded outcome tables.</div>
-    </label>
-    <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-      <span style="font-size:12.5px; font-weight:600; color:#555;">Quick Load Samples:</span>
-      <button class="btn ghost" id="btnLoad3Exports" style="padding:4px 10px; font-size:12px;">📁 Load 3 Comparison Exports (90d)</button>
-      <button class="btn ghost" id="btnLoadManuscript" style="padding:4px 10px; font-size:12px;">📄 Load Manuscript Draft (5-Year)</button>
     </div>
+    <input type="file" id="file" accept=".docx" multiple style="display:none !important;">
     <div class="msg" id="filemsg"></div>
   </div>
 
@@ -293,44 +296,6 @@ async function handleFiles(list){
   rebuildTable();
   rebuildChecks();
 }
-
-async function loadSampleFiles(urls) {
-  filemsg.className='msg'; filemsg.textContent='Loading sample files…';
-  const added=[], skipped=[];
-  for(const u of urls) {
-    const fn = u.split('/').pop();
-    try {
-      const res = await fetch(u);
-      if(!res.ok) throw new Error('fetch failed');
-      const buf = await res.arrayBuffer();
-      const datasets = await parseDocx(buf, fn);
-      for(const ds of datasets) {
-        files.push({name: fn, days: ds.days, label: ds.label, outcomes: ds.outcomes});
-        added.push(ds.label);
-      }
-    } catch(err) { skipped.push(fn+' ('+err.message+')'); }
-  }
-  let html='';
-  if(added.length) html += '<div class="msg ok">Loaded sample datasets: '+added.join('; ')+'</div>';
-  if(skipped.length) html += '<div class="msg warn">Failed: '+skipped.join('; ')+'</div>';
-  filemsg.className='msg'; filemsg.innerHTML=html;
-  rebuildTable();
-  rebuildChecks();
-}
-
-document.getElementById('btnLoad3Exports').addEventListener('click', ()=>{
-  loadSampleFiles([
-    'samples/PLT__100__MM_vs_MMAE_202607261353.docx',
-    'samples/PLT__100__Sx_vs_MMAE_202607261455.docx',
-    'samples/PLT__100__Sx_vs_Sx_+_MMAE_202607261402.docx'
-  ]);
-});
-
-document.getElementById('btnLoadManuscript').addEventListener('click', ()=>{
-  loadSampleFiles([
-    'samples/Manuscript_R1_Clean copy.docx'
-  ]);
-});
 
 /* ---------------- table ---------------- */
 function allOutcomeNames(){

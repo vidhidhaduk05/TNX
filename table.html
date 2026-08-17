@@ -4,36 +4,49 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TriNetX Compare Outcomes &rarr; Tables 1, 2, S1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
-:root { --ink:#000000; --muted:#000000; --line:#c9c9c9; --ok:#000000; --bad:#000000; }
-* { box-sizing: border-box; font-family: "Times New Roman", Times, serif !important; color: #000000 !important; }
-body { font-family: "Times New Roman", Times, serif; color: #000000; margin: 0; background: #fafafa; }
-button, input, select, textarea { font-family: "Times New Roman", Times, serif; color: #000000; }
-.wrap { max-width: 1056px; margin: 0 auto; padding: 28px 22px 60px; color: #000000; }
-h1 { font-size: 22px; margin: 0 0 4px; color: #000000; }
-.sub { color: #000000; font-size: 13px; margin-bottom: 18px; }
-.card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; margin-bottom: 22px; box-shadow: 0 1px 2px rgba(0,0,0,.04); color: #000000; }
-.drop { border: 2px dashed #9bb; border-radius: 8px; padding: 26px; text-align: center; cursor: pointer; background: #fbfdfe; display: block; color: #000000; }
-.drop:hover { background: #f2f8fb; }
+:root {
+  --paper: #f9f7f1;
+  --paper-dark: #eae6da;
+  --ink: #2f2f2f;
+  --muted: #5a5a5a;
+  --line: #c4c0b6;
+  --rule: #2f2f2f;
+  --accent: #8b0000;
+  --ok: #1a7f37;
+  --bad: #8b0000;
+}
+* { box-sizing: border-box; }
+body { font-family: 'Source Sans 3', system-ui, sans-serif; color: var(--ink); margin: 0; background: var(--paper); }
+button, input, select, textarea { font-family: 'Source Sans 3', system-ui, sans-serif; color: var(--ink); }
+.wrap { max-width: 1056px; margin: 0 auto; padding: 28px 22px 60px; color: var(--ink); }
+h1 { font-family: 'Newsreader', Georgia, serif; font-size: 24px; font-weight: 700; margin: 0 0 4px; color: var(--ink); border-bottom: 2px solid var(--rule); padding-bottom: 6px; }
+.sub { font-family: 'Merriweather', Georgia, serif; font-style: italic; color: var(--muted); font-size: 13px; margin-top: 6px; margin-bottom: 18px; }
+.card { background: #ffffff; border: 1px solid var(--line); border-radius: 0; padding: 18px 20px; margin-bottom: 22px; box-shadow: 0 1px 3px rgba(0,0,0,.04); color: var(--ink); }
+.drop { border: 2px dashed var(--rule); border-radius: 0; padding: 26px; text-align: center; cursor: pointer; background: #fdfcf9; display: block; color: var(--ink); transition: background .15s, border-color .15s; }
+.drop:hover { background: var(--paper-dark); border-color: var(--accent); }
 .drop input { display: none; }
-.drop .hint { color: #000000; font-size: 13px; margin-top: 6px; }
-.badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 12.5px; font-weight: bold; color: #000000; }
-.badge.ok { background: #e6f4ea; color: #000000; border: 1px solid #bfe3c8; }
-.badge.bad { background: #fdecea; color: #000000; border: 1px solid #f5c6c0; }
-.meta { font-size: 13.5px; margin: 8px 0 0; color: #000000; }
-.err { white-space: pre-wrap; color: #000000; font-family: "Times New Roman", Times, serif; font-size: 12.5px; max-height: 260px; overflow: auto; }
-.summary li { font-size: 13px; margin: 2px 0; color: #000000; }
-.mono { font-family: "Times New Roman", Times, serif; font-size: 12px; color: #000000; }
-.note { color: #000000; font-size: 12.5px; margin-top: 6px; }
+.drop .hint { color: var(--muted); font-size: 13px; margin-top: 6px; font-family: 'Source Sans 3', sans-serif; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 2px; font-size: 12.5px; font-weight: bold; color: var(--ink); font-family: 'Source Sans 3', sans-serif; }
+.badge.ok { background: #e6f4ea; color: #1a7f37; border: 1px solid #bfe3c8; }
+.badge.bad { background: #fdecea; color: #8b0000; border: 1px solid #f5c6c0; }
+.meta { font-size: 13.5px; margin: 8px 0 0; color: var(--ink); }
+.err { white-space: pre-wrap; color: var(--accent); font-family: 'Source Sans 3', monospace; font-size: 12.5px; max-height: 260px; overflow: auto; }
+.summary li { font-size: 13px; margin: 2px 0; color: var(--ink); }
+.mono { font-family: 'Source Sans 3', monospace; font-size: 12px; color: var(--ink); }
+.note { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
 .tblhead { display: flex; justify-content: flex-end; margin-bottom: 8px; }
-.copybtn { font-family: "Times New Roman", Times, serif; font-size: 13px; padding: 4px 14px; border: 1px solid #999; border-radius: 5px; background: #f6f6f6; cursor: pointer; color: #000000; }
-.copybtn:hover { background: #ececec; }
-.copybtn.done { border-color: #000000; color: #000000; }
-.dlbtn { font-family: "Times New Roman", Times, serif; font-size: 13.5px; font-weight: bold; padding: 8px 18px; border: 1px solid #000; border-radius: 5px; background: #f0f4f8; cursor: pointer; color: #000000; }
-.dlbtn:hover { background: #e0e8f0; }
+.copybtn { font-family: 'Source Sans 3', sans-serif; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 5px 14px; border: 1px solid var(--rule); border-radius: 0; background: #ffffff; cursor: pointer; color: var(--ink); }
+.copybtn:hover { background: var(--paper-dark); color: var(--accent); }
+.copybtn.done { border-color: var(--accent); color: var(--accent); }
+.dlbtn { font-family: 'Source Sans 3', sans-serif; font-size: 13.5px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 18px; border: 1px solid var(--rule); border-radius: 0; background: var(--ink); cursor: pointer; color: var(--paper); }
+.dlbtn:hover { background: var(--accent); border-color: var(--accent); color: #ffffff; }
 .tscroll { overflow-x: auto; }
 /* On-screen tables formatted to match publication 3-line Word standards (Table1_Baseline_MMAE_vs_MM.docx) */
-.tbl-card { background: #fff; border: 1px solid #c9c9c9; border-radius: 8px; padding: 18px 24px; margin-bottom: 22px; box-shadow: 0 1px 2px rgba(0,0,0,.04); max-width: 1056px; margin-left: auto; margin-right: auto; }
+.tbl-card { background: #ffffff; border: 1px solid var(--line); border-radius: 0; padding: 18px 24px; margin-bottom: 22px; box-shadow: 0 1px 3px rgba(0,0,0,.04); max-width: 1056px; margin-left: auto; margin-right: auto; }
 .tbl-title { font-size: 14.67px; font-weight: bold; margin-bottom: 2px; color: #000000; font-family: "Times New Roman", Times, serif; line-height: 1.1; }
 .tbl-subtitle { font-size: 13.33px; font-style: italic; margin-bottom: 6px; color: #000000; font-family: "Times New Roman", Times, serif; line-height: 1.1; }
 table.tnx { border-collapse: collapse; font-size: 13.33px; font-family: "Times New Roman", Times, serif; color: #000000; width: 100%; margin: 0 auto; line-height: 1.05; }
@@ -58,14 +71,9 @@ table.tnx tr.last-row td { border-bottom: 2px solid #000000; }
   <div class="card">
     <label class="drop" id="drop">
       <input type="file" id="file" accept=".docx" multiple>
-      <div><b>Choose TriNetX export(s) or manuscript(s)</b> (.docx) or drop them here</div>
-      <div class="hint">One or many files. Supports raw TriNetX export .docx files and manuscript drafts.</div>
+      <div><b>Choose TriNetX export(s)</b> (.docx) or drop them here</div>
+      <div class="hint">One or many files. Everything is derived from each file itself &mdash; no hardcoded cohorts, codes, or outcomes.</div>
     </label>
-    <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-      <span style="font-size:12.5px; font-weight:600; color:#555;">Quick Load Samples:</span>
-      <button id="btnLoad3Exports" style="padding:4px 10px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f6f6f6; cursor:pointer;">📁 Load 3 Comparison Exports (90d)</button>
-      <button id="btnLoadManuscript" style="padding:4px 10px; font-size:12px; border-radius:4px; border:1px solid #ccc; background:#f6f6f6; cursor:pointer;">📄 Load Manuscript Draft (5-Year)</button>
-    </div>
     <div style="margin-top:12px; font-size:13.5px;">
       <label style="cursor:pointer; color:#000000;">
         <input type="checkbox" id="bulkZip" style="margin-right:6px; vertical-align:middle;">
@@ -1719,26 +1727,6 @@ drop.addEventListener("dragover", function (e) { e.preventDefault(); });
 drop.addEventListener("drop", function (e) {
   e.preventDefault();
   routeFiles(e.dataTransfer.files);
-});
-
-async function loadSampleBlob(url, fileName) {
-  var res = await fetch(url);
-  var buf = await res.arrayBuffer();
-  return new File([buf], fileName, { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
-}
-
-document.getElementById("btnLoad3Exports").addEventListener("click", async function () {
-  setStatus('<div class="card">Loading 3 sample files…</div>');
-  var f1 = await loadSampleBlob('samples/PLT__100__MM_vs_MMAE_202607261353.docx', 'PLT__100__MM_vs_MMAE_202607261353.docx');
-  var f2 = await loadSampleBlob('samples/PLT__100__Sx_vs_MMAE_202607261455.docx', 'PLT__100__Sx_vs_MMAE_202607261455.docx');
-  var f3 = await loadSampleBlob('samples/PLT__100__Sx_vs_Sx_+_MMAE_202607261402.docx', 'PLT__100__Sx_vs_Sx_+_MMAE_202607261402.docx');
-  routeFiles([f1, f2, f3]);
-});
-
-document.getElementById("btnLoadManuscript").addEventListener("click", async function () {
-  setStatus('<div class="card">Loading manuscript file…</div>');
-  var fm = await loadSampleBlob('samples/Manuscript_R1_Clean copy.docx', 'Manuscript_R1_Clean copy.docx');
-  routeFiles([fm]);
 });
 })();
 </script>
