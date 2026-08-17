@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Study Design Flowchart Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+:root {
+  --navy: #1B2A4A;
+  --light-blue: #D6E4F0;
+  --white: #FFFFFF;
+  --border: #1B2A4A;
+  --bg: #f5f7fa;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--navy);
+  min-height: 100vh;
+}
+
+/* ── Toolbar ── */
+.fc-toolbar {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--white);
+  border-bottom: 2px solid var(--navy);
+  padding: 10px 20px;
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  justify-content: center;
+}
+.fc-toolbar button {
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  padding: 7px 16px; border-radius: 6px; cursor: pointer;
+  border: 1.5px solid var(--navy); background: var(--white); color: var(--navy);
+  transition: all 0.15s ease;
+}
+.fc-toolbar button:hover {
+  background: var(--navy); color: var(--white);
+}
+.fc-toolbar button.primary {
+  background: var(--navy); color: var(--white);
+}
+.fc-toolbar button.primary:hover {
+  background: #0d1a32;
+}
+.fc-toolbar .sep {
+  width: 1px; height: 28px; background: #ccc; margin: 0 6px;
+}
+.fc-status {
+  text-align: center;
+  font-size: 13px;
+  color: #1b5e20;
+  background: #eefaf0;
+  border: 1px solid #bfe6c8;
+  padding: 6px 12px;
+  border-radius: 6px;
+  margin: 10px auto 0;
+  max-width: 820px;
+  display: none;
+}
+
+/* ── Chart Container ── */
+.fc-chart-wrap {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 30px 20px 60px;
+}
+.fc-chart {
+  background: var(--white);
+  padding: 35px 30px 40px;
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+/* ── Title ── */
+.fc-main-title {
+  text-align: center;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 22px;
+  outline: none;
+  cursor: text;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.fc-main-title:hover { background: #eef3f8; }
+.fc-main-title:focus { background: #e0eaf3; }
+
+/* ── Rows ── */
+.fc-row {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+/* ── Boxes ── */
+.fc-box {
+  border: 2px solid var(--navy);
+  border-radius: 10px;
+  padding: 12px 18px;
+  text-align: center;
+  position: relative;
+  transition: box-shadow 0.15s;
+  line-height: 1.35;
+}
+.fc-box:hover {
+  box-shadow: 0 0 0 3px rgba(27,42,74,0.15);
+}
+.fc-box.fc-light {
+  background: var(--light-blue);
+  color: var(--navy);
+}
+.fc-box.fc-dark {
+  background: var(--navy);
+  color: var(--white);
+}
+.fc-box.fc-capsule { border-radius: 28px; }
+
+/* Width classes */
+.fc-w-xs { width: 250px; }
+.fc-w-sm { width: 300px; }
+.fc-w-md { width: 420px; }
+.fc-w-lg { width: 520px; }
+.fc-w-xl { width: 580px; }
+.fc-w-half { width: 230px; }
+.fc-w-third { width: 210px; }
+
+/* ── Box internal structure ── */
+.fc-box-title {
+  font-weight: 700;
+  font-size: 14px;
+  outline: none;
+  cursor: text;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+.fc-box-title:hover { background: rgba(255,255,255,0.35); }
+.fc-box-title:focus { background: rgba(255,255,255,0.55); }
+.fc-dark .fc-box-title:hover { background: rgba(255,255,255,0.15); }
+.fc-dark .fc-box-title:focus { background: rgba(255,255,255,0.25); }
+
+.fc-box-subtitle {
+  font-style: italic;
+  font-size: 13px;
+  margin-top: 2px;
+  outline: none;
+  cursor: text;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+.fc-box-subtitle:hover { background: rgba(255,255,255,0.35); }
+.fc-box-subtitle:focus { background: rgba(255,255,255,0.55); }
+
+.fc-box-line {
+  font-size: 13px;
+  outline: none;
+  cursor: text;
+  padding: 1px 4px;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+.fc-box-line:hover { background: rgba(255,255,255,0.35); }
+.fc-box-line:focus { background: rgba(255,255,255,0.55); }
+.fc-dark .fc-box-line:hover { background: rgba(255,255,255,0.15); }
+.fc-dark .fc-box-line:focus { background: rgba(255,255,255,0.25); }
+
+.fc-box-line.fc-italic { font-style: italic; }
+
+.fc-box-bullets {
+  text-align: left;
+  margin-top: 5px;
+  font-size: 12.5px;
+}
+.fc-bullet {
+  padding-left: 16px;
+  position: relative;
+  outline: none;
+  cursor: text;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  padding-right: 4px;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+.fc-bullet::before {
+  content: '•';
+  position: absolute;
+  left: 4px;
+  font-weight: bold;
+}
+.fc-bullet:hover { background: rgba(255,255,255,0.35); }
+.fc-bullet:focus { background: rgba(255,255,255,0.55); }
+
+.fc-two-col {
+  display: flex;
+  gap: 20px;
+  text-align: left;
+  margin-top: 6px;
+  font-size: 12.5px;
+}
+.fc-col { flex: 1; }
+.fc-col-title {
+  font-weight: 700;
+  font-size: 12.5px;
+  text-decoration: underline;
+  outline: none;
+  cursor: text;
+  padding: 2px 4px;
+  border-radius: 3px;
+  margin-bottom: 3px;
+}
+.fc-col-title:hover { background: rgba(255,255,255,0.35); }
+.fc-col-title:focus { background: rgba(255,255,255,0.55); }
+
+/* ── Box hover actions ── */
+.fc-box-actions {
+  position: absolute;
+  top: -10px; right: -10px;
+  display: none;
+  gap: 3px;
+  z-index: 10;
+}
+.fc-box:hover .fc-box-actions { display: flex; }
+.fc-box-actions button {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--navy);
+  background: var(--white);
+  color: var(--navy);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+.fc-box-actions button:hover {
+  background: var(--navy); color: var(--white);
+}
+
+/* ── Connectors ── */
+.fc-conn {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+}
+.fc-conn svg {
+  display: block;
+}
+
+/* ── Add bullet button ── */
+.fc-add-bullet {
+  display: none;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--navy);
+  background: rgba(255,255,255,0.6);
+  border: 1px dashed var(--navy);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+.fc-box:hover .fc-add-bullet { display: inline-block; }
+.fc-add-bullet:hover { background: rgba(255,255,255,0.9); }
+
+/* ── Print / export cleanup ── */
+@media print {
+  .fc-toolbar { display: none; }
+  .fc-box-actions { display: none !important; }
+  .fc-add-bullet { display: none !important; }
+  body { background: white; }
+  .fc-chart-wrap { padding: 0; }
+  .fc-chart { box-shadow: none; }
+}
+</head>
+<body>
+
+<div class="fc-toolbar">
+  <button class="primary" id="btnUploadDocx">📂 Upload .docx to Auto-Populate</button>
+  <input type="file" id="fcFile" accept=".docx" style="display:none;">
+  <button id="btnLoad3Exports">📁 Sample 3 Exports (90d)</button>
+  <button id="btnLoadManuscript">📄 Sample Manuscript (5-Year)</button>
+  <div class="sep"></div>
+  <button class="primary" id="btnPng">📥 Download PNG (300 DPI)</button>
+  <button class="primary" id="btnSvg">📥 Download SVG</button>
+  <div class="sep"></div>
+  <button id="btnReset">↺ Reset to Default</button>
+</div>
+<div class="fc-status" id="fcStatus"></div>
+
+<div class="fc-chart-wrap">
+<div class="fc-chart" id="chart">
+
+  <!-- ── Title ── -->
+  <div class="fc-main-title" contenteditable="true">Study Design</div>
+
+  <!-- ── Row 0: TriNetX Research Network ── -->
+  <div class="fc-row">
+    <div class="fc-box fc-light fc-w-md" id="box0">
+      <div class="fc-box-actions">
+        <button onclick="toggleStyle(this)" title="Toggle dark/light">◐</button>
+      </div>
+      <div class="fc-box-title" contenteditable="true">TriNetX Research Network</div>
+      <div class="fc-box-line" contenteditable="true">113 U.S. Healthcare Organizations</div>
+      <div class="fc-box-line fc-italic" contenteditable="true">January 2016 – January 2026</div>
+    </div>
+  </div>
+
+  <!-- Arrow -->
+  <div class="fc-conn">
+    <svg width="16" height="38" viewBox="0 0 16 38"><line x1="8" y1="0" x2="8" y2="28" stroke="#1B2A4A" stroke-width="2"/><polygon points="2,26 8,38 14,26" fill="#1B2A4A"/></svg>
+  </div>
+
+  <!-- ── Row 1: Adult Patients ── -->
+  <div class="fc-row">
+    <div class="fc-box fc-light fc-w-lg" id="box1">
+      <div class="fc-box-actions">
+        <button onclick="toggleStyle(this)" title="Toggle dark/light">◐</button>
+      </div>
+      <div class="fc-box-title" contenteditable="true">Adult Patients (≥18 years) Undergoing<br>Carotid Revascularization (CAS or CEA)</div>
+      <div class="fc-box-bullets">
+        <div class="fc-bullet" contenteditable="true">ICA stenosis (symptomatic or asymptomatic)</div>
+        <div class="fc-bullet" contenteditable="true">Underwent CAS (Carotid Artery Stenting) or CEA (Carotid Endarterectomy)</div>
+        <div class="fc-bullet" contenteditable="true">GLP-1RA exposure: on procedure date or within 90 days after</div>
+      </div>
+      <button class="fc-add-bullet" onclick="addBullet(this)">+ Add bullet</button>
+    </div>
+  </div>
+
+  <!-- Arrow -->
+  <div class="fc-conn">
+    <svg width="16" height="38" viewBox="0 0 16 38"><line x1="8" y1="0" x2="8" y2="28" stroke="#1B2A4A" stroke-width="2"/><polygon points="2,26 8,38 14,26" fill="#1B2A4A"/></svg>
+  </div>
+
+  <!-- ── Row 2: Exclusions ── -->
+  <div class="fc-row">
+    <div class="fc-box fc-light fc-w-md" id="box2">
+      <div class="fc-box-actions">
+        <button onclick="toggleStyle(this)" title="Toggle dark/light">◐</button>
+      </div>
+      <div class="fc-box-title" contenteditable="true">Exclusions</div>
+      <div class="fc-box-bullets">
+        <div class="fc-bullet" contenteditable="true">Prior ischemic stroke</div>
+        <div class="fc-bullet" contenteditable="true">Missing NIHSS documentation</div>
+      </div>
+      <button class="fc-add-bullet" onclick="addBullet(this)">+ Add bullet</button>
+    </div>
+  </div>
+
+  <!-- Arrow -->
+  <div class="fc-conn">
+    <svg width="16" height="38" viewBox="0 0 16 38"><line x1="8" y1="0" x2="8" y2="28" stroke="#1B2A4A" stroke-width="2"/><polygon points="2,26 8,38 14,26" fill="#1B2A4A"/></svg>
+  </div>
+
+  <!-- ── Row 3: Eligible Cohort ── -->
+  <div class="fc-row">
+    <div class="fc-box fc-light fc-capsule fc-w-sm" id="box3">
+      <div class="fc-box-actions">
+        <button onclick="toggleStyle(this)" title="Toggle dark/light">◐</button>
+      </div>
+      <div class="fc-box-title" contenteditable="true">Eligible Cohort</div>
+      <div class="fc-box-line" contenteditable="true">(n = 8,305)</div>
+    </div>
+  </div>
+
+  <!-- Split to 2 -->
+  <div class="fc-conn">
+    <svg width="550" height="45" viewBox="0 0 550 45" preserveAspectRatio="xMidYMid meet" style="max-width:550px;">
+      <line x1="275" y1="0" x2="275" y2="18" stroke="#1B2A4A" stroke-width="2"/>
+      <line x1="138" y1="18" x2="412" y2="18" stroke="#1B2A4A" stroke-width="2"/>
+      <line x1="138" y1="18" x2="138" y2="37" stroke="#1B2A4A" stroke-width="2"/>
+      <line x1="412" y1="18" x2="412" y2="37" stroke="#1B2A4A" stroke-width="2"/>
+      <polygon points="132,35 138,45 144,35" fill="#1B2A4A"/>
+      <polygon points="406,35 412,45 418,35" fill="#1B2A4A"/>
+    </svg>
+  </div>
+
+  <!-- ── Row 4: CAS + CEA side by side ── -->
+  <div class="fc-row" style="max-width:550px; margin:0 auto;">
+    <div class="fc-box fc-light fc-w-half" id="box4a">
+      <div class="fc-box-actions">
+        <button onclick="toggleStyle(this)" title="Toggle dark/light">◐</button>
+      </div>
+      <div class="fc-box-title" contenteditable="true">CAS Cohort</div>
+      <div class="fc-box-line" contenteditable="true">(n = 1,426)</div>
+    </div>
+    <div class="fc-box fc-light fc-w-half" id="box4b">
+      <div class="fc-box-actions">
+        <button onclick="toggleStyle(this)" title="Toggle dark/light">◐</button>
+      </div>
+      <div class="fc-box-title" contenteditable="true">CEA Cohort</div>
+      <div class="fc-box-line" contenteditable="true">(n = 6,879)</div>
+    </div>
+  </div>
+
+  <!-- Merge from 2 -->
+  <div class="fc-conn">
+    <svg width="550" height="45" viewBox="0 0 550 45" preserveAspectRatio="xMidYMid meet" style="max-width:550px;">
+      <line x1="138" y1="0" x2="138" y2="18" stroke="#1B2A4A" stroke-width="2"/>
+      <line x1="412" y1="0" x2="412" y2="18" stroke="#1B2A4A" stroke-width="2"/>
+      <line x1="138" y1="18" x2="412" y2="18" stroke="#1B2A4A" stroke-width="2"/>
+      <line x1="275" y1="18" x2="275" y2="37" stroke="#1B2A4A" stroke-width="2"/>
+      <polygon points="269,35 275,45 281,35" fill="#1B2A4A"/>
+    </svg>
+  </div>
+
+  <!-- ── Row 5: PSM Matching ── -->
+  <div class="fc-row">
+    <div class="fc-box fc-light fc-w-xl" id="box5">
+      <div class="fc-box-actions">
+        <button onclick="toggleStyle(this)" title="Toggle dark/light">◐</button>
+      </div>
+      <div class="fc-box-title" contenteditable="true">1:1 Propensity Score Matching (Greedy Nearest Neighbor)</div>
+      <div class="fc-box-subtitle" contenteditable="true">Matching Variables</div>
+      <div class="fc-box-bullets">
+        <div class="fc-bullet" contenteditable="true">Demographics &nbsp;• Vascular Risk Factors &nbsp;• NIHSS Category &nbsp;• Prior ICH</div>
+        <div class="fc-bullet" contenteditable="true">Angioplasty/Stenting &nbsp;• Thrombolysis &nbsp;• Aspirin &nbsp;• Clopidogrel</div>
+      </div>
+      <button class="fc-add-bullet" onclick="addBullet(this)">+ Add bullet</button>
+    </div>
+  </div>
+
+  <!-- Arrow -->
+  <div class="fc-conn">
+    <svg width="16" height="38" viewBox="0 0 16 38"><line x1="8" y1="0" x2="8" y2="28" stroke="#1B2A4A" stroke-width="2"/><polygon points="2,26 8,38 14,26" fill="#1B2A4A"/></svg>
+  </div>
+
+  <!-- ── Row 6: Matched Cohorts (dark) ── -->
+  <div class="fc-row">
+    <div class="fc-box fc-dark fc-w-md" id="box6">
+      <div class="fc-box-actions">
+        <button onclick="toggleStyle(this)" title="Toggle dark/light">◐</button>
+      </div>
+      <div class="fc-box-title" contenteditable="true">Matched Cohorts</div>
+      <div class="fc-box-line" contenteditable="true">CAS: 443 vs 443 &nbsp;| &nbsp;CEA: 633 vs 633</div>
+    </div>
+  </div>
+
+  <!-- Split to 3 -->
+  <div class="fc-conn">
+    <svg width="700" height="45" viewBox="0 0 700 45" preserveAspectRatio="xMidYMid meet" style="max-width:700px;">
+      <line x1="350" y1="0" x2="350" y2="18" stroke="#1B2A4A" stroke-width="2"/>
+      <line x1="115" y1="18" x2="585" y2="18" stroke="#1B2A4A" stroke-width="2"/>
+      <line x1="115" y1="18" x2="115" y2="37" stroke="#1B2A4A" stroke-width="2"/>
+      <line x1="350" y1="18" x2="350" y2="37" stroke="#1B2A4A" stroke-width="2"/>
+      <line x1="585" y1="18" x2="585" y2="37" stroke="#1B2A4A" stroke-width="2"/>
+      <polygon points="109,35 115,45 121,35" fill="#1B2A4A"/>
+      <polygon points="344,35 350,45 356,35" fill="#1B2A4A"/>
+      <polygon points="579,35 585,45 591,35" fill="#1B2A4A"/>
+    </svg>
+  </div>
+
+  <!-- ── Row 7: Three analysis boxes ── -->
+  <div class="fc-row" style="max-width:700px; margin:0 auto;">
+    <div class="fc-box fc-light fc-w-third" id="box7a">
+      <div class="fc-box-actions">
+        <button onclick="toggleStyle(this)" title="Toggle dark/light">◐</button>
+      </div>
+      <div class="fc-box-title" contenteditable="true">Overall Analysis</div>
+      <div class="fc-box-line" contenteditable="true">CAS: 443 vs 443</div>
+      <div class="fc-box-line" contenteditable="true">CEA: 633 vs 633</div>
+    </div>
+    <div class="fc-box fc-light fc-w-third" style="width:240px;" id="box7b">
+      <div class="fc-box-actions">
+        <button onclick="toggleStyle(this)" title="Toggle dark/light">◐</button>
+      </div>
+      <div class="fc-box-title" contenteditable="true">Angioplasty/Stent Subgroup</div>
+      <div class="fc-box-line" contenteditable="true">CAS: 119 vs 119</div>
+      <div class="fc-box-line" contenteditable="true">CEA: 128 vs 128</div>
+    </div>
+    <div class="fc-box fc-light fc-w-third" id="box7c">
+      <div class="fc-box-actions">
+        <button onclick="toggleStyle(this)" title="Toggle dark/light">◐</button>
+      </div>
+      <div class="fc-box-title" contenteditable="true">No Angioplasty/Stent Subgroup</div>
+      <div class="fc-box-line" contenteditable="true">CAS: 324 vs 324</div>
+      <div class="fc-box-line" contenteditable="true">CEA: 505 vs 505</div>
+    </div>
+  </div>
+
+  <!-- Merge from 3 -->
+  <div class="fc-conn">
+    <svg width="700" height="45" viewBox="0 0 700 45" preserveAspectRatio="xMidYMid meet" style="max-width:700px;">
+      <line x1="115" y1="0" x2="115" y2="18" stroke="#1B2A4A" stroke-width="2"/>
+      <line x1="350" y1="0" x2="350" y2="18" stroke="#1B2A4A" stroke-width="2"/>
+      <line x1="585" y1="0" x2="585" y2="18" stroke="#1B2A4A" stroke-width="2"/>
+      <line x1="115" y1="18" x2="585" y2="18" stroke="#1B2A4A" stroke-width="2"/>
+      <line x1="350" y1="18" x2="350" y2="37" stroke="#1B2A4A" stroke-width="2"/>
+      <polygon points="344,35 350,45 356,35" fill="#1B2A4A"/>
+    </svg>
+  </div>
+
+  <!-- ── Row 8: Outcomes Assessed ── -->
+  <div class="fc-row">
+    <div class="fc-box fc-light fc-w-xl" id="box8">
+      <div class="fc-box-actions">
+        <button onclick="toggleStyle(this)" title="Toggle dark/light">◐</button>
+      </div>
+      <div class="fc-box-title" contenteditable="true">Outcomes Assessed (Up to 5 Years)</div>
+      <div class="fc-two-col">
+        <div class="fc-col">
+          <div class="fc-col-title" contenteditable="true">Primary Outcomes</div>
+          <div class="fc-bullet" contenteditable="true">Ischemic Stroke</div>
+          <div class="fc-bullet" contenteditable="true">All-Cause Mortality</div>
+          <div class="fc-bullet" contenteditable="true">Composite: Ischemic Stroke or Death</div>
+        </div>
+        <div class="fc-col">
+          <div class="fc-col-title" contenteditable="true">Secondary Outcomes</div>
+          <div class="fc-bullet" contenteditable="true">Recurrent Stroke</div>
+          <div class="fc-bullet" contenteditable="true">Functional Dependency</div>
+          <div class="fc-bullet" contenteditable="true">ICU Stay</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arrow -->
+  <div class="fc-conn">
+    <svg width="16" height="38" viewBox="0 0 16 38"><line x1="8" y1="0" x2="8" y2="28" stroke="#1B2A4A" stroke-width="2"/><polygon points="2,26 8,38 14,26" fill="#1B2A4A"/></svg>
+  </div>
+
+  <!-- ── Row 9: Statistical Analysis (dark) ── -->
+  <div class="fc-row">
+    <div class="fc-box fc-dark fc-w-xl" id="box9">
+      <div class="fc-box-actions">
+        <button onclick="toggleStyle(this)" title="Toggle dark/light">◐</button>
+      </div>
+      <div class="fc-box-title" contenteditable="true">Statistical Analysis</div>
+      <div class="fc-box-line" contenteditable="true">Kaplan–Meier Analysis &nbsp;• Cox Proportional Hazards Models &nbsp;• Hazard Ratios (95% CI)</div>
+      <div class="fc-box-line" contenteditable="true">Log-Rank Test</div>
+    </div>
+  </div>
+
+</div><!-- /fc-chart -->
+</div><!-- /fc-chart-wrap -->
+
+<script>
+// ── Utility ──
+function escXml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function downloadBlob(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+// ── Toggle dark/light ──
+function toggleStyle(btn) {
+  const box = btn.closest('.fc-box');
+  box.classList.toggle('fc-light');
+  box.classList.toggle('fc-dark');
+}
+
+// ── Add bullet ──
+function addBullet(btn) {
+  const box = btn.closest('.fc-box');
+  let container = box.querySelector('.fc-box-bullets');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'fc-box-bullets';
+    btn.parentNode.insertBefore(container, btn);
+  }
+  const bullet = document.createElement('div');
+  bullet.className = 'fc-bullet';
+  bullet.contentEditable = 'true';
+  bullet.textContent = 'New item';
+  container.appendChild(bullet);
+  bullet.focus();
+  // Select all text for easy replacement
+  const range = document.createRange();
+  range.selectNodeContents(bullet);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+// ── Delete bullet on Backspace when empty ──
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Backspace') {
+    const el = document.activeElement;
+    if (el && el.classList.contains('fc-bullet') && el.textContent.trim() === '') {
+      e.preventDefault();
+      const prev = el.previousElementSibling;
+      el.remove();
+      if (prev) prev.focus();
+    }
+  }
+});
+
+// ── SVG Export (pure SVG — no foreignObject) ──
+function generatePureSVG() {
+  const C = '#1B2A4A';
+  const LB = '#D6E4F0';
+  const FONT = 'Arial, Helvetica, sans-serif';
+
+  const chart = document.getElementById('chart');
+  const chartRect = chart.getBoundingClientRect();
+  const ox = chartRect.left;
+  const oy = chartRect.top;
+  const W = Math.ceil(chartRect.width);
+  const H = Math.ceil(chartRect.height);
+
+  const els = [];
+
+  // Background
+  els.push(`<rect width="${W}" height="${H}" fill="#fff"/>`);
+
+  // Main title
+  const titleEl = chart.querySelector('.fc-main-title');
+  if (titleEl) {
+    const r = titleEl.getBoundingClientRect();
+    const x = r.left - ox + r.width / 2;
+    const y = r.top - oy + r.height * 0.75;
+    els.push(`<text x="${x}" y="${y}" font-size="26" font-weight="bold" font-family="${FONT}" text-anchor="middle" fill="${C}">${escXml(titleEl.textContent.trim())}</text>`);
+  }
+
+  // Boxes
+  chart.querySelectorAll('.fc-box').forEach(box => {
+    const r = box.getBoundingClientRect();
+    const bx = r.left - ox;
+    const by = r.top - oy;
+    const bw = r.width;
+    const bh = r.height;
+    const isDark = box.classList.contains('fc-dark');
+    const isCapsule = box.classList.contains('fc-capsule');
+    const fill = isDark ? C : LB;
+    const textFill = isDark ? '#fff' : C;
+    const rx = isCapsule ? bh / 2 : 10;
+
+    els.push(`<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${rx}" fill="${fill}" stroke="${C}" stroke-width="2"/>`);
+
+    // Render text elements from box children
+    const textEls = box.querySelectorAll('.fc-box-title, .fc-box-subtitle, .fc-box-line, .fc-bullet, .fc-col-title');
+    textEls.forEach(te => {
+      const tr = te.getBoundingClientRect();
+      const tx = tr.left - ox;
+      const ty = tr.top - oy;
+      const tw = tr.width;
+      const th = tr.height;
+      const text = te.textContent.trim();
+      if (!text) return;
+
+      const isBold = te.classList.contains('fc-box-title') || te.classList.contains('fc-col-title');
+      const isItalic = te.classList.contains('fc-box-subtitle') || te.classList.contains('fc-italic');
+      const isBullet = te.classList.contains('fc-bullet');
+      const isColTitle = te.classList.contains('fc-col-title');
+
+      const fs = isBold && !isColTitle ? 14 : 12.5;
+      const weight = isBold ? 'bold' : 'normal';
+      const style = isItalic ? 'italic' : 'normal';
+      const anchor = te.closest('.fc-two-col') || te.closest('.fc-box-bullets') ? 'start' : 'middle';
+      const textX = anchor === 'start' ? tx + 4 : tx + tw / 2;
+      const textY = ty + th * 0.7;
+
+      let displayText = isBullet ? '• ' + text : text;
+      if (isColTitle) displayText = text;
+
+      // Handle multi-line (from <br> in innerHTML)
+      const lines = te.innerHTML.split(/<br\s*\/?>/gi).map(l => l.replace(/<[^>]*>/g, '').trim()).filter(l => l);
+      
+      if (lines.length > 1) {
+        const lineH = fs * 1.35;
+        const startY = ty + fs + 2;
+        lines.forEach((line, i) => {
+          const lText = (i === 0 && isBullet) ? '• ' + line : (isBullet && i > 0 ? '  ' + line : line);
+          els.push(`<text x="${textX}" y="${startY + i * lineH}" font-size="${fs}" font-weight="${weight}" font-style="${style}" font-family="${FONT}" text-anchor="${anchor}" fill="${textFill}">${escXml(lText)}</text>`);
+        });
+      } else {
+        els.push(`<text x="${textX}" y="${textY}" font-size="${fs}" font-weight="${weight}" font-style="${style}" font-family="${FONT}" text-anchor="${anchor}" fill="${textFill}">${escXml(displayText)}</text>`);
+      }
+    });
+  });
+
+  // Connectors (read inline SVGs)
+  chart.querySelectorAll('.fc-conn svg').forEach(svg => {
+    const r = svg.getBoundingClientRect();
+    const sx = r.left - ox;
+    const sy = r.top - oy;
+    const sw = r.width;
+    const sh = r.height;
+    const vb = svg.getAttribute('viewBox');
+    if (!vb) return;
+    const [vx, vy, vw, vh] = vb.split(/\s+/).map(Number);
+    const scaleX = sw / vw;
+    const scaleY = sh / vh;
+
+    svg.querySelectorAll('line').forEach(line => {
+      const x1 = sx + parseFloat(line.getAttribute('x1')) * scaleX;
+      const y1 = sy + parseFloat(line.getAttribute('y1')) * scaleY;
+      const x2 = sx + parseFloat(line.getAttribute('x2')) * scaleX;
+      const y2 = sy + parseFloat(line.getAttribute('y2')) * scaleY;
+      els.push(`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${C}" stroke-width="2"/>`);
+    });
+    svg.querySelectorAll('polygon').forEach(poly => {
+      const pts = poly.getAttribute('points').split(/[\s,]+/).map(Number);
+      const mapped = [];
+      for (let i = 0; i < pts.length; i += 2) {
+        mapped.push(`${(sx + pts[i] * scaleX).toFixed(1)},${(sy + pts[i+1] * scaleY).toFixed(1)}`);
+      }
+      els.push(`<polygon points="${mapped.join(' ')}" fill="${C}"/>`);
+    });
+  });
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FONT}">
+${els.join('\n')}
+</svg>`;
+}
+
+// ── Export SVG ──
+document.getElementById('btnSvg').addEventListener('click', () => {
+  const svgStr = generatePureSVG();
+  downloadBlob(new Blob([svgStr], { type: 'image/svg+xml' }), 'study_design.svg');
+});
+
+// ── Export PNG (render SVG to canvas) ──
+document.getElementById('btnPng').addEventListener('click', () => {
+  const svgStr = generatePureSVG();
+  const chart = document.getElementById('chart');
+  const rect = chart.getBoundingClientRect();
+  const W = Math.ceil(rect.width);
+  const H = Math.ceil(rect.height);
+  const scale = 300 / 96; // 300 DPI
+
+  const img = new Image();
+  const encoded = btoa(unescape(encodeURIComponent(svgStr)));
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = W * scale;
+    canvas.height = H * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(b => downloadBlob(b, 'study_design.png'), 'image/png');
+  };
+  img.onerror = () => alert('PNG export failed in this browser. Please use SVG export instead.');
+  img.src = 'data:image/svg+xml;base64,' + encoded;
+});
+
+// ── Reset ──
+const defaultHTML = document.getElementById('chart').innerHTML;
+document.getElementById('btnReset').addEventListener('click', () => {
+  if (confirm('Reset to default? All edits will be lost.')) {
+    document.getElementById('chart').innerHTML = defaultHTML;
+    document.getElementById('fcStatus').style.display = 'none';
+  }
+});
+
+// ── .docx Upload & Auto-Population ──
+const btnUploadDocx = document.getElementById('btnUploadDocx');
+const fcFile = document.getElementById('fcFile');
+const fcStatus = document.getElementById('fcStatus');
+
+btnUploadDocx.addEventListener('click', () => fcFile.click());
+fcFile.addEventListener('change', e => {
+  if (e.target.files && e.target.files[0]) {
+    parseAndPopulateFlowchart(e.target.files[0]);
+  }
+});
+
+async function parseAndPopulateFlowchart(file) {
+  fcStatus.style.display = 'block';
+  fcStatus.textContent = `Parsing ${file.name} to auto-populate flowchart…`;
+  try {
+    const buf = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(buf);
+    const xmlFile = zip.file('word/document.xml');
+    if (!xmlFile) throw new Error('Not a valid Word document');
+    const xml = await xmlFile.async('string');
+
+    let txt = xml.replace(/<w:p [^>]*>/g, '\n').replace(/<w:p>/g, '\n').replace(/<[^>]+>/g, '');
+    txt = txt.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+
+    const nMatches = [...txt.matchAll(/N\s*=\s*([\d,]+)/gi)].map(m => m[1]);
+
+    const dateMatch = txt.match(/(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\s*[\u2013\-–]\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}/i);
+    if (dateMatch) {
+      const box0Line = document.querySelector('#box0 .fc-italic');
+      if (box0Line) box0Line.textContent = dateMatch[0];
+    }
+
+    if (nMatches.length >= 2) {
+      const box6Line = document.querySelector('#box6 .fc-box-line');
+      if (box6Line && nMatches.length >= 4) {
+        box6Line.textContent = `CAS: ${nMatches[0]} vs ${nMatches[1]}  |  CEA: ${nMatches[2]} vs ${nMatches[3]}`;
+      } else if (box6Line && nMatches.length >= 2) {
+        box6Line.textContent = `Cohort 1: ${nMatches[0]}  |  Cohort 2: ${nMatches[1]}`;
+      }
+    }
+
+    const outcomeSet = new Set();
+    const tbls = xml.match(/<w:tbl[\s>].*?<\/w:tbl>/gs) || [];
+    tbls.forEach(tXml => {
+      const rowsXml = tXml.match(/<w:tr[\s>].*?<\/w:tr>/gs) || [];
+      rowsXml.forEach(rXml => {
+        const cXmls = rXml.match(/<w:tc[\s>].*?<\/w:tc>/gs) || [];
+        if (cXmls.length >= 2) {
+          const name = cXmls[0].replace(/<[^>]+>/g, '').replace(/[\ufffd\uFFFD\u200B]/g, ' ').replace(/%\s*\(n\)/i, '').trim();
+          if (name && name.length < 50 && !name.toLowerCase().includes('table') && !name.toLowerCase().includes('outcome') && !name.toLowerCase().includes('glp-1')) {
+            outcomeSet.add(name);
+          }
+        }
+      });
+    });
+
+    if (outcomeSet.size > 0) {
+      const outcomesArr = [...outcomeSet];
+      const box8Col1 = document.querySelector('#box8 .fc-col:first-child');
+      const box8Col2 = document.querySelector('#box8 .fc-col:last-child');
+      if (box8Col1 && box8Col2) {
+        const bullets1 = box8Col1.querySelectorAll('.fc-bullet');
+        const bullets2 = box8Col2.querySelectorAll('.fc-bullet');
+        if (outcomesArr[0] && bullets1[0]) bullets1[0].textContent = outcomesArr[0];
+        if (outcomesArr[1] && bullets1[1]) bullets1[1].textContent = outcomesArr[1];
+        if (outcomesArr[2] && bullets1[2]) bullets1[2].textContent = outcomesArr[2];
+        if (outcomesArr[3] && bullets2[0]) bullets2[0].textContent = outcomesArr[3];
+        if (outcomesArr[4] && bullets2[1]) bullets2[1].textContent = outcomesArr[4];
+      }
+    }
+
+    fcStatus.textContent = `✓ Auto-populated flowchart from ${file.name}`;
+  } catch (err) {
+    console.error(err);
+    fcStatus.textContent = `⚠️ Could not parse file: ${err.message}`;
+  }
+}
+
+async function loadFcSample(url) {
+  fcStatus.style.display = 'block';
+  fcStatus.textContent = 'Loading sample file…';
+  const fn = url.split('/').pop();
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Fetch failed');
+    const buf = await res.arrayBuffer();
+    const file = new File([buf], fn, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    parseAndPopulateFlowchart(file);
+  } catch (e) {
+    fcStatus.style.display = 'block';
+    fcStatus.textContent = `⚠️ Sample load failed: ${e.message}`;
+  }
+}
+
+document.getElementById('btnLoad3Exports').addEventListener('click', () => {
+  loadFcSample('samples/PLT__100__MM_vs_MMAE_202607261353.docx');
+});
+
+document.getElementById('btnLoadManuscript').addEventListener('click', () => {
+  loadFcSample('samples/Manuscript_R1_Clean copy.docx');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+/* style.css - pastel theme for the standalone site */
+
+/* Import Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+:root {
+  --font-primary: 'Inter', sans-serif;
+  --bg-gradient: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%); /* very light pastel gradient */
+  --nav-bg: #ffffff;
+  --nav-hover: #e0f7fa;
+  --link-color: #33691e; /* tealish */
+  --link-hover: #1b5e20;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-primary);
+  background: var(--bg-gradient);
+  color: #212121;
+  line-height: 1.5;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  background: var(--nav-bg);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+nav {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  padding: 0.75rem 1rem;
+}
+
+nav a {
+  color: var(--link-color);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+nav a:hover, nav a.active {
+  background: var(--nav-hover);
+  color: var(--link-hover);
+}
+
+main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 1rem;
+}
+
+iframe {
+  width: 100%;
+  max-width: 1200px;
+  height: 80vh;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  background: #fff;
+}
+
+footer {
+  text-align: center;
+  font-size: 0.9rem;
+  padding: 1rem;
+  color: #777;
+}

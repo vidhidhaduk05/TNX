@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TriNetX Outcome Bar Charts</title>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --c1:#1F8FE5; --c2:#FFA500; --ink:#222; --line:#ccc; --bg:#fff;
+    --ok:#1a7f37; --warn:#b25e09; --err:#b00020;
+  }
+  *{box-sizing:border-box}
+  body{font-family:"Liberation Sans",Arial,Helvetica,sans-serif;color:var(--ink);margin:0;background:#f6f7f8}
+  header{background:#0f1115;color:#fff;padding:14px 20px}
+  header h1{font-size:17px;margin:0;font-weight:600}
+  header p{margin:4px 0 0;font-size:12px;color:#c9d1d9}
+  main{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
+  .card{background:var(--bg);border:1px solid #e3e6ea;border-radius:8px;padding:16px 18px;margin:14px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .card h2{font-size:14px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.04em;color:#444}
+  .drop{border:2px dashed #b9c2cc;border-radius:8px;padding:22px;text-align:center;color:#5b6470;background:#fbfcfd;cursor:pointer}
+  .drop.drag{background:#eef6ff;border-color:var(--c1)}
+  .drop input{display:none}
+  .row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+  .field{display:flex;flex-direction:column;gap:4px;font-size:12px}
+  .field input[type=text]{padding:6px 8px;border:1px solid var(--line);border-radius:5px;font-size:13px;min-width:180px}
+  .btn{background:var(--c1);color:#fff;border:0;border-radius:6px;padding:8px 14px;font-size:13px;cursor:pointer}
+  .btn.ghost{background:#fff;color:var(--c1);border:1px solid var(--c1)}
+  .btn:disabled{opacity:.5;cursor:default}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:6px}
+  th,td{border:1px solid #e3e6ea;padding:5px 7px;text-align:center}
+  th{background:#f0f2f5;font-weight:600}
+  td.name{text-align:left;font-weight:600}
+  td input{width:64px;padding:3px 4px;border:1px solid transparent;border-radius:4px;text-align:center;font-size:12.5px;background:transparent}
+  td input:focus{border-color:var(--c1);background:#fff;outline:none}
+  td input.bad{border-color:var(--err);background:#fff5f5}
+  .chk{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+  .chk label{display:flex;gap:6px;align-items:center;font-size:13px;background:#f0f2f5;border:1px solid #e3e6ea;border-radius:20px;padding:5px 12px;cursor:pointer}
+  .msg{font-size:12.5px;margin-top:8px;padding:8px 10px;border-radius:6px;display:none}
+  .msg.warn{display:block;background:#fff7ec;color:var(--warn);border:1px solid #ffd9a8}
+  .msg.err{display:block;background:#fff1f2;color:var(--err);border:1px solid #ffc9d1}
+  .msg.ok{display:block;background:#eefaf0;color:var(--ok);border:1px solid #bfe6c8}
+  .charts{display:grid;grid-template-columns:1fr;gap:18px}
+  .chartbox{background:#fff;border:1px solid #e3e6ea;border-radius:8px;padding:14px}
+  .chartbox h3{font-size:13.5px;margin:0 0 8px}
+  .canvaswrap{position:relative;height:500px;max-width:755px;margin:0 auto}
+  .dl{margin-top:10px}
+  .hint{font-size:12px;color:#6a7280;margin-top:6px}
+  .legend{display:flex;gap:18px;font-size:12.5px;margin:2px 0 0}
+  .sw{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:middle}
+</style>
+</head>
+<body>
+<header>
+  <h1>TriNetX Compare-Outcomes &rarr; Grouped Bar Charts</h1>
+  <p>Upload one report .docx per follow-up window. Event probability rate = 100 &minus; KM survival at end of window. Nothing leaves your browser.</p>
+</header>
+<main>
+
+  <div class="card">
+    <h2>1. Upload report or manuscript files</h2>
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept=".docx" multiple>
+      <div><strong>Click to choose .docx files</strong> or drag them here</div>
+      <div class="hint">Supports raw TriNetX export files (.docx) and manuscript drafts (.docx) with embedded outcome tables.</div>
+    </label>
+    <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <span style="font-size:12.5px; font-weight:600; color:#555;">Quick Load Samples:</span>
+      <button class="btn ghost" id="btnLoad3Exports" style="padding:4px 10px; font-size:12px;">📁 Load 3 Comparison Exports (90d)</button>
+      <button class="btn ghost" id="btnLoadManuscript" style="padding:4px 10px; font-size:12px;">📄 Load Manuscript Draft (5-Year)</button>
+    </div>
+    <div class="msg" id="filemsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. Cohort legend labels</h2>
+    <div class="row">
+      <div class="field"><span>Cohort 1 label</span><input type="text" id="lab1" value="Cohort 1"></div>
+      <div class="field"><span>Cohort 2 label</span><input type="text" id="lab2" value="Cohort 2"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--c1)"></span>Cohort 1</span>
+        <span><span class="sw" style="background:var(--c2)"></span>Cohort 2</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3. Extracted values (editable)</h2>
+    <div class="hint">Rates are event probability rate (%) per cohort; p is the log-rank p-value. Edit any cell or column title and the charts update.</div>
+    <div id="tablewrap"><em style="font-size:13px;color:#6a7280">Upload files to populate the table.</em></div>
+    <div class="msg" id="parsemsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>4. Outcomes to plot</h2>
+    <div class="chk" id="chkwrap"><em style="font-size:13px;color:#6a7280">No outcomes yet.</em></div>
+  </div>
+
+  <div class="card">
+    <h2>5. Charts</h2>
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn" id="render">Render charts</button>
+      <button class="btn ghost" id="clear">Clear all</button>
+    </div>
+    <div class="charts" id="charts"></div>
+  </div>
+
+</main>
+
+<script>
+/* ---------------- state ---------------- */
+const C1 = '#1F8FE5', C2 = '#FFA500';
+let files = [];            // [{name, days, label, outcomes:{name:{r1,r2,p}}}]
+let charts = [];           // Chart.js instances
+
+/* ---------------- docx parsing ---------------- */
+async function parseDocx(fileBuffer, fileName){
+  const zip = await JSZip.loadAsync(fileBuffer);
+  const xmlFile = zip.file('word/document.xml');
+  if(!xmlFile) throw new Error('Not a Word document');
+  let xml = await xmlFile.async('string');
+
+  const parsedDatasets = [];
+
+  // --- 1. Check for embedded Word tables (<w:tbl>) in manuscripts ---
+  const tbls = xml.match(/<w:tbl[\s>].*?<\/w:tbl>/gs);
+  if (tbls && tbls.length > 0) {
+    for (let tIdx = 0; tIdx < tbls.length; tIdx++) {
+      const tXml = tbls[tIdx];
+      const rowsXml = tXml.match(/<w:tr[\s>].*?<\/w:tr>/gs) || [];
+      const rows = rowsXml.map(rXml => {
+        const cXmls = rXml.match(/<w:tc[\s>].*?<\/w:tc>/gs) || [];
+        return cXmls.map(c => c.replace(/<[^>]+>/g, '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').trim());
+      });
+
+      if (rows.length < 2) continue;
+
+      let tableTitle = "";
+      let headerRowIdx = -1;
+      for (let rIdx = 0; rIdx < Math.min(rows.length, 4); rIdx++) {
+        const rStr = rows[rIdx].join(" ").toLowerCase();
+        if (rStr.includes("table") && (rStr.includes("outcome") || rStr.includes("cohort") || rStr.includes("follow-up") || rStr.includes("stenting") || rStr.includes("endarterectomy"))) {
+          tableTitle = rows[rIdx][0] || rows[rIdx].join(" ");
+        }
+        if (["outcomes", "event probability", "glp-1", "cohort", "risk"].some(kw => rStr.includes(kw))) {
+          if (!rStr.startsWith("table 1:") && !rStr.startsWith("table 2:")) {
+            headerRowIdx = rIdx;
+          }
+        }
+      }
+
+      if (headerRowIdx === -1 && rows.length > 1) headerRowIdx = 1;
+      if (headerRowIdx < 0) continue;
+
+      const headers = rows[headerRowIdx] || rows[0];
+      let colR1 = -1, colR2 = -1, colP = -1;
+      headers.forEach((h, i) => {
+        const hl = h.toLowerCase();
+        if (hl.includes("event probability") || hl.includes("km rate") || hl.includes("event rate")) {
+          if (colR1 === -1) colR1 = i;
+          else if (colR2 === -1) colR2 = i;
+        } else if (hl.includes("p-value") || hl === "p" || hl.includes("log-rank")) {
+          colP = i;
+        }
+      });
+
+      if (colR1 === -1) {
+        if (headers.length >= 5) { colR1 = 3; colR2 = 4; }
+        else if (headers.length >= 3) { colR1 = 1; colR2 = 2; }
+      }
+
+      const outcomes = {};
+      for (let r = headerRowIdx + 1; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row || row.length < 2) continue;
+        const name = row[0].replace(/[\ufffd\uFFFD\u200B]/g, ' ').replace(/\s*%\s*\(n\)/i, '').trim();
+        if (!name || name.toLowerCase().startsWith("table") || name.toLowerCase().startsWith("outcome")) continue;
+
+        let r1 = null, r2 = null, p = null;
+        if (colR1 >= 0 && colR1 < row.length) {
+          const m1 = row[colR1].match(/(\d+(?:\.\d+)?)%?/);
+          if (m1) r1 = parseFloat(m1[1]);
+        }
+        if (colR2 >= 0 && colR2 < row.length) {
+          const m2 = row[colR2].match(/(\d+(?:\.\d+)?)%?/);
+          if (m2) r2 = parseFloat(m2[1]);
+        }
+        if (colP >= 0 && colP < row.length) {
+          const mp = row[colP].match(/([0-9.]+)/);
+          if (mp) p = parseFloat(mp[1]);
+        }
+
+        if (r1 !== null || r2 !== null) {
+          outcomes[name] = { r1, r2, p };
+        }
+      }
+
+      if (Object.keys(outcomes).length > 0) {
+        let label = tableTitle ? tableTitle.split(":")[0].trim() : fileName.replace(/\.docx$/i, '');
+        if (tableTitle.includes("Carotid Artery Stenting") || tableTitle.includes("CAS")) label = "CAS Cohort (5-Year)";
+        else if (tableTitle.includes("Carotid Endarterectomy") || tableTitle.includes("CEA")) label = "CEA Cohort (5-Year)";
+
+        parsedDatasets.push({ label, days: 1825, outcomes });
+      }
+    }
+  }
+
+  if (parsedDatasets.length > 0) return parsedDatasets;
+
+  // --- 2. Fallback: Raw TriNetX export parser ---
+  let txt = xml.replace(/<w:p [^>]*>/g, '\n').replace(/<w:p>/g, '\n').replace(/<[^>]+>/g, '');
+  txt = txt.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+
+  let days = null;
+  const dm = txt.match(/ended (\d+) days after the first occurrence of the index event/);
+  if(dm) days = parseInt(dm[1],10);
+
+  const blockRe = /\n(\d+) ([A-Z][^\n]{2,60})\n\nRisk analysis/g;
+  const blocks = [];
+  let m;
+  while((m = blockRe.exec(txt)) !== null){
+    blocks.push({name:m[2].trim(), start:m.index});
+  }
+  const outcomes = {};
+  for(let i=0;i<blocks.length;i++){
+    const start = blocks[i].start;
+    const end = (i+1<blocks.length)? blocks[i+1].start : txt.indexOf('Appendix A', start);
+    const seg = txt.slice(start, end>0?end:undefined);
+
+    const kmIdx = seg.indexOf('Kaplan - Meier survival analysis');
+    let r1=null, r2=null, p=null;
+    if(kmIdx>=0){
+      const kmSeg = seg.slice(kmIdx);
+      const pcts = [...kmSeg.matchAll(/(\d+(?:\.\d+)?)%/g)].map(x=>parseFloat(x[1]));
+      if(pcts.length>=2){ r1 = +(100-pcts[0]).toFixed(2); r2 = +(100-pcts[1]).toFixed(2); }
+      const lm = kmSeg.match(/Log-Rank Test\s*\n[\d.]+\s*\n1\s*\n([\d.]+)/);
+      if(lm) p = parseFloat(lm[1]);
+    }
+    outcomes[blocks[i].name] = {r1, r2, p};
+  }
+
+  let compName = "";
+  const fnMatch = fileName.match(/PLT__\d+__([A-Za-z0-9_+-]+)_\d+/);
+  if (fnMatch) {
+    compName = fnMatch[1].replace(/_/g, ' ');
+  }
+
+  let label = daysToLabel(days) || fileName.replace(/\.docx$/i,'');
+  if (compName) {
+    label = (daysToLabel(days) ? daysToLabel(days) + " " : "") + "(" + compName + ")";
+  }
+
+  return [{ label, days, outcomes }];
+}
+
+function daysToLabel(days){
+  if(days==null) return null;
+  const y = days/365;
+  if(Math.abs(y-Math.round(y))<0.02) return Math.round(y)+'-Year';
+  return days+'d';
+}
+
+/* ---------------- file handling ---------------- */
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('file');
+const filemsg = document.getElementById('filemsg');
+
+drop.addEventListener('click', ()=>fileInput.click());
+drop.addEventListener('dragover', e=>{e.preventDefault();drop.classList.add('drag');});
+drop.addEventListener('dragleave', ()=>drop.classList.remove('drag'));
+drop.addEventListener('drop', e=>{e.preventDefault();drop.classList.remove('drag');handleFiles(e.dataTransfer.files);});
+fileInput.addEventListener('change', e=>handleFiles(e.target.files));
+
+async function handleFiles(list){
+  filemsg.className='msg'; filemsg.textContent='';
+  const added=[], skipped=[];
+  for(const f of list){
+    if(!f.name.toLowerCase().endsWith('.docx')){ skipped.push(f.name+' (not .docx)'); continue; }
+    try{
+      const buf = await f.arrayBuffer();
+      const datasets = await parseDocx(buf, f.name);
+      for(const ds of datasets) {
+        files.push({name: f.name, days: ds.days, label: ds.label, outcomes: ds.outcomes});
+        added.push(ds.label);
+      }
+    }catch(err){ skipped.push(f.name+' ('+err.message+')'); }
+  }
+  let html='';
+  if(added.length) html += '<div class="msg ok">Loaded: '+added.join('; ')+'</div>';
+  if(skipped.length) html += '<div class="msg warn">Skipped: '+skipped.join('; ')+'</div>';
+  filemsg.className='msg'; filemsg.innerHTML=html;
+  rebuildTable();
+  rebuildChecks();
+}
+
+async function loadSampleFiles(urls) {
+  filemsg.className='msg'; filemsg.textContent='Loading sample files…';
+  const added=[], skipped=[];
+  for(const u of urls) {
+    const fn = u.split('/').pop();
+    try {
+      const res = await fetch(u);
+      if(!res.ok) throw new Error('fetch failed');
+      const buf = await res.arrayBuffer();
+      const datasets = await parseDocx(buf, fn);
+      for(const ds of datasets) {
+        files.push({name: fn, days: ds.days, label: ds.label, outcomes: ds.outcomes});
+        added.push(ds.label);
+      }
+    } catch(err) { skipped.push(fn+' ('+err.message+')'); }
+  }
+  let html='';
+  if(added.length) html += '<div class="msg ok">Loaded sample datasets: '+added.join('; ')+'</div>';
+  if(skipped.length) html += '<div class="msg warn">Failed: '+skipped.join('; ')+'</div>';
+  filemsg.className='msg'; filemsg.innerHTML=html;
+  rebuildTable();
+  rebuildChecks();
+}
+
+document.getElementById('btnLoad3Exports').addEventListener('click', ()=>{
+  loadSampleFiles([
+    'samples/PLT__100__MM_vs_MMAE_202607261353.docx',
+    'samples/PLT__100__Sx_vs_MMAE_202607261455.docx',
+    'samples/PLT__100__Sx_vs_Sx_+_MMAE_202607261402.docx'
+  ]);
+});
+
+document.getElementById('btnLoadManuscript').addEventListener('click', ()=>{
+  loadSampleFiles([
+    'samples/Manuscript_R1_Clean copy.docx'
+  ]);
+});
+
+/* ---------------- table ---------------- */
+function allOutcomeNames(){
+  const set = new Set();
+  files.forEach(f=>Object.keys(f.outcomes).forEach(n=>set.add(n)));
+  return [...set];
+}
+
+function rebuildTable(){
+  const wrap = document.getElementById('tablewrap');
+  const names = allOutcomeNames();
+  if(!files.length || !names.length){ wrap.innerHTML='<em style="font-size:13px;color:#6a7280">Upload files to populate the table.</em>'; return; }
+  let h='<table><thead><tr><th rowspan="2" style="text-align:left">Outcome</th>';
+  files.forEach((f, fi)=>{ 
+    h+=`<th colspan="3"><input type="text" value="${f.label}" data-fi="${fi}" class="hdr-label-input" style="width:90%; font-weight:bold; text-align:center; border:1px solid #ccc; border-radius:3px; padding:2px;"></th>`; 
+  });
+  h+='</tr><tr>';
+  files.forEach(()=>{ h+='<th>C1 %</th><th>C2 %</th><th>p</th>'; });
+  h+='</tr></thead><tbody>';
+  names.forEach(n=>{
+    h+=`<tr><td class="name">${n}</td>`;
+    files.forEach((f,fi)=>{
+      const o=f.outcomes[n]||{r1:null,r2:null,p:null};
+      h+=cell(n,fi,'r1',o.r1)+cell(n,fi,'r2',o.r2)+cell(n,fi,'p',o.p);
+    });
+    h+='</tr>';
+  });
+  h+='</tbody></table>';
+  wrap.innerHTML=h;
+  wrap.querySelectorAll('input[data-key]').forEach(inp=>{
+    inp.addEventListener('input', onCellEdit);
+  });
+  wrap.querySelectorAll('.hdr-label-input').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const fi = +e.target.dataset.fi;
+      files[fi].label = e.target.value;
+    });
+  });
+}
+function cell(name,fi,key,val){
+  const v = (val==null)? '' : val;
+  return `<td><input data-name="${name}" data-fi="${fi}" data-key="${key}" value="${v}"></td>`;
+}
+function onCellEdit(e){
+  const inp=e.target;
+  const name=inp.dataset.name, fi=+inp.dataset.fi, key=inp.dataset.key;
+  const raw=inp.value.trim();
+  let val = raw===''? null : parseFloat(raw);
+  if(raw!=='' && isNaN(val)){ inp.classList.add('bad'); return; }
+  inp.classList.remove('bad');
+  if(!files[fi].outcomes[name]) files[fi].outcomes[name]={r1:null,r2:null,p:null};
+  files[fi].outcomes[name][key]=val;
+}
+
+/* ---------------- outcome checkboxes ---------------- */
+function rebuildChecks(){
+  const wrap=document.getElementById('chkwrap');
+  const names=allOutcomeNames();
+  if(!names.length){ wrap.innerHTML='<em style="font-size:13px;color:#6a7280">No outcomes yet.</em>'; return; }
+  wrap.innerHTML = names.map(n=>`<label><input type="checkbox" value="${n}" checked>${n}</label>`).join('');
+}
+
+/* ---------------- chart rendering ---------------- */
+document.getElementById('render').addEventListener('click', renderCharts);
+document.getElementById('clear').addEventListener('click', ()=>{
+  files=[]; charts.forEach(c=>c.destroy()); charts=[];
+  document.getElementById('charts').innerHTML='';
+  document.getElementById('tablewrap').innerHTML='<em style="font-size:13px;color:#6a7280">Upload files to populate the table.</em>';
+  document.getElementById('chkwrap').innerHTML='<em style="font-size:13px;color:#6a7280">No outcomes yet.</em>';
+  filemsg.className='msg'; filemsg.textContent=''; fileInput.value='';
+});
+
+function fmtP(p){
+  if(p==null) return 'p=n/a';
+  if(p<0.001) return 'p<0.001';
+  return 'p='+p.toFixed(3);
+}
+
+// plugin: draw a rounded box around the legend (matches target figure)
+const legendBox = {
+  id:'legendBox',
+  beforeDraw(chart){
+    const lg = chart.legend;
+    if(!lg || !lg.legendHitBoxes || !lg.legendHitBoxes.length) return;
+    const {ctx} = chart;
+    const boxes = lg.legendHitBoxes;
+    let minX=1e9, minY=1e9, maxX=-1e9, maxY=-1e9;
+    boxes.forEach(b=>{
+      minX=Math.min(minX,b.left); minY=Math.min(minY,b.top);
+      maxX=Math.max(maxX,b.left+b.width); maxY=Math.max(maxY,b.top+b.height);
+    });
+    const pad=8;
+    minX-=pad; minY-=pad; maxX+=pad; maxY+=pad;
+    ctx.save();
+    ctx.strokeStyle='#d0d0d0'; ctx.lineWidth=1;
+    ctx.beginPath();
+    const r=6;
+    ctx.moveTo(minX+r,minY);
+    ctx.arcTo(maxX,minY,maxX,maxY,r);
+    ctx.arcTo(maxX,maxY,minX,maxY,r);
+    ctx.arcTo(minX,maxY,minX,minY,r);
+    ctx.arcTo(minX,minY,maxX,minY,r);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+
+// plugin: value labels + p brackets
+const annotate = {
+  id:'annotate',
+  afterDatasetsDraw(chart){
+    const {ctx, chartArea} = chart;
+    const meta0 = chart.getDatasetMeta(0);
+    const meta1 = chart.getDatasetMeta(1);
+    const pvals = chart.$pvals || [];
+    ctx.save();
+    ctx.textAlign='center';
+    // value labels (with % sign, like the target figure)
+    [meta0,meta1].forEach(meta=>{
+      meta.data.forEach((bar,i)=>{
+        const v = chart.data.datasets[meta===meta0?0:1].data[i];
+        if(v==null) return;
+        ctx.fillStyle='#000'; ctx.font='bold 12px "Liberation Sans", Arial';
+        ctx.fillText(v.toFixed(2)+'%', bar.x, bar.y-7);
+      });
+    });
+    // p brackets: dark line, red bold p text above (like the target figure)
+    meta0.data.forEach((bar0,i)=>{
+      const bar1 = meta1.data[i];
+      const p = pvals[i];
+      if(p==null) return;
+      const y0 = Math.min(bar0.y, bar1.y);
+      const y = y0 - 26;
+      const x1 = bar0.x, x2 = bar1.x;
+      const sig = p<0.05;
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(x1, y+7); ctx.lineTo(x1, y); ctx.lineTo(x2, y); ctx.lineTo(x2, y+7);
+      ctx.stroke();
+      ctx.fillStyle = sig? '#c00000' : '#555';
+      ctx.font = (sig?'bold ':'')+'12px "Liberation Sans", Arial';
+      ctx.fillText(fmtP(p), (x1+x2)/2, y-5);
+    });
+    ctx.restore();
+  }
+};
+
+function renderCharts(){
+  charts.forEach(c=>c.destroy()); charts=[];
+  const host=document.getElementById('charts'); host.innerHTML='';
+  const lab1=document.getElementById('lab1').value||'Cohort 1';
+  const lab2=document.getElementById('lab2').value||'Cohort 2';
+  const selected=[...document.querySelectorAll('#chkwrap input:checked')].map(x=>x.value);
+  const labels=files.map(f=>f.label);
+  if(!files.length){ host.innerHTML='<em style="color:#6a7280">Upload files first.</em>'; return; }
+  if(!selected.length){ host.innerHTML='<em style="color:#6a7280">Select at least one outcome.</em>'; return; }
+
+  selected.forEach(name=>{
+    const d1=files.map(f=>(f.outcomes[name]||{}).r1);
+    const d2=files.map(f=>(f.outcomes[name]||{}).r2);
+    const pv=files.map(f=>(f.outcomes[name]||{}).p);
+
+    const box=document.createElement('div'); box.className='chartbox';
+    box.innerHTML=`<h3>${name}</h3><div class="canvaswrap"><canvas></canvas></div>
+      <button class="btn ghost dl">Download PNG</button>`;
+    host.appendChild(box);
+    const canvas=box.querySelector('canvas');
+
+    const maxv=Math.max(...d1.filter(v=>v!=null), ...d2.filter(v=>v!=null), 0);
+    const chart=new Chart(canvas, {
+      type:'bar',
+      data:{ labels,
+        datasets:[
+          {label:lab1, data:d1, backgroundColor:C1, borderColor:C1, borderWidth:1, barPercentage:0.9, categoryPercentage:0.8},
+          {label:lab2, data:d2, backgroundColor:C2, borderColor:C2, borderWidth:1, barPercentage:0.9, categoryPercentage:0.8}
+        ]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        layout:{padding:{top:34}},
+        scales:{
+          x:{title:{display:true,text:'Follow-up Duration',font:{size:12,weight:'bold'},color:'#000'},
+             ticks:{color:'#000'}, grid:{display:false}},
+          y:{title:{display:true,text:'Event Probability Rate (%)',font:{size:12,weight:'bold'},color:'#000'},
+             beginAtZero:true, suggestedMax:maxv*1.35,
+             ticks:{color:'#000'},
+             grid:{color:'#e3e6ea', borderDash:[4,4]}, border:{display:false}}
+        },
+        plugins:{
+          legend:{position:'top', align:'end',
+                  labels:{boxWidth:16, boxHeight:16, padding:14, font:{size:12}, color:'#000',
+                          generateLabels(chart){
+                            const base = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                            base.forEach(l=>{ l.borderRadius=2; });
+                            return base;
+                          }},
+                  // rounded box around the legend, like the target figure
+                  onClick:(e,item,legend)=>Chart.defaults.plugins.legend.onClick(e,item,legend),
+                  },
+          title:{display:true, text:[name+' Rates by Follow-up Duration', '('+lab1+' vs '+lab2+')'],
+                 font:{size:15,weight:'bold'}, color:'#000', padding:{bottom:12}},
+          tooltip:{callbacks:{label:(c)=> c.dataset.label+': '+(c.parsed.y==null?'n/a':c.parsed.y.toFixed(2)+'%')}}
+        }
+      },
+      plugins:[legendBox, annotate]
+    });
+    chart.$pvals=pv;
+    charts.push(chart);
+
+    box.querySelector('.dl').addEventListener('click', ()=>{
+      const a=document.createElement('a');
+      a.download = name.replace(/[^a-z0-9]+/gi,'_').toLowerCase()+'_barchart.png';
+      // upscale for ~300dpi
+      const scale=3.5;
+      const tmp=document.createElement('canvas');
+      tmp.width=canvas.width*scale; tmp.height=canvas.height*scale;
+      const tctx=tmp.getContext('2d');
+      tctx.fillStyle='#fff'; tctx.fillRect(0,0,tmp.width,tmp.height);
+      tctx.scale(scale,scale);
+      tctx.drawImage(canvas,0,0);
+      a.href=tmp.toDataURL('image/png');
+      a.click();
+    });
+  });
+}
+</script>
+</body>
+</html>

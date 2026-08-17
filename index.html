@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TriNetX Standalone Viewer</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="#" class="nav-link active" data-page="table.html">Table View</a>
+      <a href="#" class="nav-link" data-page="love.html">Love Plot</a>
+      <a href="#" class="nav-link" data-page="outcome.html">Outcome Charts</a>
+      <a href="#" class="nav-link" data-page="flowchart.html">Study Design</a>
+    </nav>
+  </header>
+  <main>
+    <iframe id="content-frame" src="table.html" title="Content" sandbox="allow-scripts allow-same-origin"></iframe>
+  </main>
+  <script>
+    const links = document.querySelectorAll('.nav-link');
+    const iframe = document.getElementById('content-frame');
+    links.forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        // Update active class
+        links.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+        // Load selected page
+        const page = link.getAttribute('data-page');
+        iframe.src = page;
+      });
+    });
+  </script>
+</body>
+</html>
