@@ -1435,6 +1435,102 @@ function _reanalysisGuidance(f) {
   return suggestions;
 }
 
+function _limitationsText(flags, hasCritical, allFlags) {
+  /* Publication-quality limitations template following Ross & Bibler Zaidi (2019):
+     (1) describe the limitation, (2) explain implication, (3) provide alternative
+     approaches, (4) describe mitigation steps. Incorporates unmeasured confounding,
+     EHR data-source bias, cell suppression, and causal caveat. */
+
+  /* Build covariate list with ASD values and direction */
+  var covList = [];
+  var hasSuppressed = false;
+  for (var i = 0; i < flags.length; i++) {
+    var f = flags[i];
+    var entry = f.label;
+    if (f.afterAsd !== null) {
+      entry += " (post-match ASD " + f.afterAsd.toFixed(3);
+      if (f.direction && f.direction !== "unknown" && f.direction !== "n/a" && f.direction !== "balanced") {
+        entry += ", " + f.direction;
+      }
+      entry += ")";
+    } else {
+      entry += " (ASD suppressed, count \u226410)";
+      hasSuppressed = true;
+    }
+    covList.push(entry);
+  }
+
+  /* Detect key confounders, bidirectional imbalance, PSM paradox, R5 suppression */
+  var hasKeyConfounder = false;
+  var favorsIntervention = false;
+  var favorsControl = false;
+  var hasWorsened = false;
+  for (var j = 0; j < flags.length; j++) {
+    if (flags[j].rules.indexOf("R4") >= 0) hasKeyConfounder = true;
+    if (flags[j].direction === "favors intervention") favorsIntervention = true;
+    if (flags[j].direction === "favors control") favorsControl = true;
+    if (flags[j].rules.indexOf("R2") >= 0) hasWorsened = true;
+  }
+  var bidirectional = favorsIntervention && favorsControl;
+
+  var hasR5 = false;
+  for (var k = 0; k < allFlags.length; k++) {
+    if (allFlags[k].rules.indexOf("R5") >= 0) hasR5 = true;
+  }
+
+  var parts = [];
+
+  /* (1) Describe the limitation — name specific covariates with ASD and direction */
+  if (hasCritical) {
+    parts.push("Propensity-score matching did not achieve adequate balance for " + covList.join("; ") + ".");
+  } else {
+    parts.push("Propensity-score matching did not fully balance " + covList.join("; ") + ".");
+  }
+
+  /* Direction of imbalance */
+  if (bidirectional) {
+    parts.push("These residual imbalances ran in both directions and cannot be assumed to cancel one another.");
+  } else if (favorsIntervention && !favorsControl) {
+    parts.push("The residual imbalance favors the intervention arm, potentially inflating the apparent treatment benefit.");
+  } else if (favorsControl && !favorsIntervention) {
+    parts.push("The residual imbalance favors the comparator arm, potentially attenuating the apparent treatment effect.");
+  }
+
+  /* (2) Explain implication — unmeasured confounding / treatment selection bias */
+  if (hasKeyConfounder) {
+    parts.push("Treatment selection may reflect patient frailty, goals of care, performance status, clinical stability, and disease severity, none of which are fully captured in this administrative dataset.");
+    parts.push("Residual confounding related to treatment candidacy could account for some or all of the observed association.");
+  } else {
+    parts.push("Residual confounding from unmeasured covariates may bias the treatment effect estimate.");
+  }
+
+  /* PSM paradox if applicable */
+  if (hasWorsened) {
+    parts.push("Matching paradoxically worsened balance on at least one covariate, which can occur when the algorithm prioritizes overall balance at the expense of specific covariates.");
+  }
+
+  /* EHR data source limitations */
+  parts.push("Electronic health record inclusion depends on healthcare utilization, which may select a population that differs from the general population.");
+
+  /* Cell suppression */
+  if (hasSuppressed || hasR5) {
+    parts.push("The platform obfuscates cells of 10 or fewer, limiting balance assessment for rare covariates and precluding analysis of very small subgroups.");
+  }
+
+  /* (3) Alternative approaches — sensitivity analyses */
+  if (hasCritical) {
+    parts.push("Sensitivity analyses, including E-values to quantify the minimum unmeasured confounding strength sufficient to explain the observed effect, and covariate adjustment in the outcome model, are recommended.");
+    parts.push("Re-analysis with exact matching or tighter caliper settings on the flagged covariates is also advised.");
+  } else {
+    parts.push("Covariate adjustment for these variables in sensitivity analyses is warranted.");
+  }
+
+  /* (4) Causal caveat */
+  parts.push("These findings are associative, not causal, and require prospective confirmation before informing individual treatment decisions.");
+
+  return parts.join(" ");
+}
+
 function renderBalanceQC(qc) {
   if (!qc || !qc.flags) return "";
   var v = qc.verdict || "";
@@ -1516,21 +1612,10 @@ function renderBalanceQC(qc) {
     }
     html += "</ul></div>";
 
-    /* Limitations wording */
-    var limItems = [];
-    for (var k2 = 0; k2 < critHighFlags.length; k2++) {
-      var fl2 = critHighFlags[k2];
-      limItems.push(fl2.label + " (post-match ASD " + (fl2.afterAsd !== null ? fl2.afterAsd.toFixed(3) : "N/A") + ")");
-    }
+    /* Limitations wording — publication-quality template */
     html += '<div class="qc-limitations">';
     html += '<div class="qc-limitations-title">If this imbalance persists after re-analysis, include the following in your Limitations section:</div>';
-    if (hasCritical) {
-      html += "Propensity-score matching did not achieve adequate balance for " + esc(limItems.join("; ")) +
-        ". Residual confounding may bias the treatment effect estimate; results should be interpreted with caution and re-analysis with exact matching or tighter caliper settings is recommended.";
-    } else {
-      html += "Propensity-score matching did not fully balance " + esc(limItems.join("; ")) +
-        ". Although residual imbalance is modest, these covariates are disclosed for transparency and may warrant covariate adjustment in sensitivity analyses.";
-    }
+    html += esc(_limitationsText(critHighFlags, hasCritical, qc.flags));
     html += "</div>";
   }
 
