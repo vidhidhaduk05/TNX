@@ -50,32 +50,37 @@ h1 { font-family: 'Newsreader', Georgia, serif; font-size: 24px; font-weight: 70
 .tbl-title { font-size: 14.67px; font-weight: bold; margin-bottom: 2px; color: #000000; font-family: "Times New Roman", Times, serif; line-height: 1.1; }
 .tbl-subtitle { font-size: 13.33px; font-style: italic; margin-bottom: 6px; color: #000000; font-family: "Times New Roman", Times, serif; line-height: 1.1; }
 .tbl-footnote { font-size: 11px; font-style: italic; color: #000000; margin-top: 4px; font-family: "Times New Roman", Times, serif; line-height: 1.2; }
-/* PSM Balance QC panel */
+/* PSM Balance QC panel — newsprint theme */
 .qc-card { background: #ffffff; border: 1px solid var(--line); border-radius: 0; padding: 18px 24px; margin-bottom: 22px; box-shadow: 0 1px 3px rgba(0,0,0,.04); max-width: 1056px; margin-left: auto; margin-right: auto; }
-.qc-card-title { font-size: 15px; font-weight: bold; margin-bottom: 8px; color: #000; font-family: "Times New Roman", Times, serif; }
-.qc-verdict { font-size: 14px; font-weight: bold; padding: 10px 16px; border-radius: 4px; margin-bottom: 12px; font-family: "Times New Roman", Times, serif; }
-.qc-verdict.ok { background: #e8f5e9; border-left: 4px solid #4caf50; color: #1b5e20; }
-.qc-verdict.moderate { background: #fff8e1; border-left: 4px solid #ffc107; color: #e65100; }
-.qc-verdict.high { background: #fff3e0; border-left: 4px solid #ff9800; color: #bf360c; }
-.qc-verdict.critical { background: #ffebee; border-left: 4px solid #f44336; color: #b71c1c; }
-.qc-summary { font-size: 13px; color: #333; margin-bottom: 10px; font-family: "Times New Roman", Times, serif; }
-.qc-summary .badge-sm { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; margin-right: 6px; }
-.qc-summary .badge-sm.critical { background: #f44336; color: #fff; }
-.qc-summary .badge-sm.high { background: #ff9800; color: #fff; }
-.qc-summary .badge-sm.moderate { background: #ffc107; color: #000; }
-.qc-summary .badge-sm.info { background: #90caf9; color: #000; }
+.qc-card-title { font-size: 15px; font-weight: bold; margin-bottom: 8px; color: var(--ink); font-family: 'Source Sans 3', system-ui, sans-serif; }
+.qc-verdict { font-size: 14px; font-weight: bold; padding: 10px 16px; border-radius: 2px; margin-bottom: 12px; font-family: 'Source Sans 3', system-ui, sans-serif; }
+.qc-verdict.ok { background: #e6f4ea; border-left: 4px solid #1a7f37; color: #1a7f37; }
+.qc-verdict.moderate { background: #fdf3d7; border-left: 4px solid #b8860b; color: #6b5a1e; }
+.qc-verdict.high { background: #fde8d7; border-left: 4px solid #c0651a; color: #7a3a0e; }
+.qc-verdict.critical { background: #fdecea; border-left: 4px solid var(--accent); color: var(--accent); }
+.qc-summary { font-size: 13px; color: var(--ink); margin-bottom: 10px; font-family: 'Source Sans 3', system-ui, sans-serif; }
+.qc-summary .badge-sm { display: inline-block; padding: 1px 8px; border-radius: 2px; font-size: 11px; font-weight: bold; margin-right: 6px; font-family: 'Source Sans 3', system-ui, sans-serif; }
+.qc-summary .badge-sm.critical { background: var(--accent); color: #fff; }
+.qc-summary .badge-sm.high { background: #c0651a; color: #fff; }
+.qc-summary .badge-sm.moderate { background: #b8860b; color: #fff; }
+.qc-summary .badge-sm.info { background: var(--muted); color: #fff; }
 .qc-table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: "Times New Roman", Times, serif; margin-bottom: 12px; }
-.qc-table th { border-bottom: 1.5px solid #000; border-top: 1.5px solid #000; padding: 4px 6px; text-align: left; font-weight: bold; color: #000; }
-.qc-table td { border-bottom: 0.5px solid #ccc; padding: 3px 6px; color: #000; vertical-align: top; }
+.qc-table th { border-bottom: 1.5px solid var(--rule); border-top: 1.5px solid var(--rule); padding: 4px 6px; text-align: left; font-weight: bold; color: var(--ink); }
+.qc-table td { border-bottom: 0.5px solid var(--line); padding: 3px 6px; color: var(--ink); vertical-align: top; }
 .qc-table tr:last-child td { border-bottom: none; }
-.qc-sev { font-weight: bold; font-size: 11px; padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
-.qc-sev.CRITICAL { background: #f44336; color: #fff; }
-.qc-sev.HIGH { background: #ff9800; color: #fff; }
-.qc-sev.MODERATE { background: #ffc107; color: #000; }
-.qc-sev.INFO { background: #90caf9; color: #000; }
-.qc-limitations { font-size: 12px; color: #333; background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px 14px; font-family: "Times New Roman", Times, serif; line-height: 1.4; }
-.qc-limitations-title { font-weight: bold; margin-bottom: 4px; color: #000; }
-.qc-note { font-size: 11px; color: #666; font-style: italic; margin-top: 8px; font-family: "Times New Roman", Times, serif; }
+.qc-sev { font-weight: bold; font-size: 11px; padding: 1px 6px; border-radius: 2px; white-space: nowrap; font-family: 'Source Sans 3', system-ui, sans-serif; }
+.qc-sev.CRITICAL { background: var(--accent); color: #fff; }
+.qc-sev.HIGH { background: #c0651a; color: #fff; }
+.qc-sev.MODERATE { background: #b8860b; color: #fff; }
+.qc-sev.INFO { background: var(--muted); color: #fff; }
+.qc-limitations { font-size: 12px; color: var(--ink); background: var(--paper-dark); border: 1px solid var(--line); border-radius: 2px; padding: 10px 14px; font-family: 'Source Sans 3', system-ui, sans-serif; line-height: 1.4; }
+.qc-limitations-title { font-weight: bold; margin-bottom: 4px; color: var(--ink); }
+.qc-note { font-size: 11px; color: var(--muted); font-style: italic; margin-top: 8px; font-family: 'Source Sans 3', system-ui, sans-serif; }
+.qc-why { font-size: 12px; color: var(--ink); background: #ffffff; border: 1px solid var(--line); border-radius: 2px; padding: 10px 14px; margin-bottom: 10px; font-family: 'Source Sans 3', system-ui, sans-serif; line-height: 1.4; }
+.qc-why-title { font-weight: bold; margin-bottom: 4px; color: var(--ink); }
+.qc-guidance { font-size: 12px; color: var(--ink); background: #ffffff; border: 1px solid var(--line); border-radius: 2px; padding: 10px 14px; margin-bottom: 10px; font-family: 'Source Sans 3', system-ui, sans-serif; line-height: 1.4; }
+.qc-guidance-title { font-weight: bold; margin-bottom: 4px; color: var(--ink); }
+.qc-guidance li { margin: 3px 0 3px 16px; }
 table.tnx { border-collapse: collapse; font-size: 13.33px; font-family: "Times New Roman", Times, serif; color: #000000; width: 100%; margin: 0 auto; line-height: 1.05; }
 table.tnx td { padding: 1px 4px; vertical-align: middle; font-family: "Times New Roman", Times, serif; color: #000000; border: none; line-height: 1.05; }
 table.tnx tr.top-header td { border-top: 2px solid #000000; border-bottom: 0.75pt solid #000000; font-weight: bold; text-align: center; padding: 2px 4px; }
@@ -1374,6 +1379,62 @@ function renderModel(model) {
 }
 
 /* ---------- PSM Balance QC rendering ---------- */
+function _sevLabel(sev) {
+  return sev.charAt(0) + sev.slice(1).toLowerCase();
+}
+
+function _whyExplanation(f) {
+  var label = f.label;
+  var parts = [];
+  var isKey = f.rules.indexOf("R4") >= 0;
+  var imbalanced = f.rules.indexOf("R1") >= 0;
+  var worsened = f.rules.indexOf("R2") >= 0;
+  var dir = f.direction || "unknown";
+
+  if (isKey && imbalanced && worsened) {
+    parts.push("The " + label + " distributions had insufficient overlap between cohorts. " +
+      "The intervention arm had " + (dir === "favors intervention" ? "more favorable" : "less favorable") +
+      " baseline values, and the matching algorithm could not fully correct this imbalance. " +
+      "This is a key confounder, so residual imbalance directly threatens the validity of the treatment effect estimate.");
+  } else if (isKey && imbalanced) {
+    parts.push("The " + label + " distributions differed between cohorts even after matching. " +
+      "As a key confounder, this covariate requires adequate balance for unbiased estimation. " +
+      "The propensity score model may not have fully captured its contribution to treatment assignment.");
+  } else if (imbalanced && worsened) {
+    parts.push("Matching paradoxically increased the imbalance in " + label + ". " +
+      "This can occur when the matching algorithm prioritizes balance on other covariates at the expense of this one.");
+  } else if (imbalanced) {
+    parts.push("The " + label + " distributions differed between cohorts after matching. " +
+      "The propensity score model did not fully capture this covariate's contribution to treatment assignment.");
+  } else if (worsened) {
+    parts.push("Matching increased the imbalance in " + label + " (before ASD " +
+      (f.beforeAsd !== null ? f.beforeAsd.toFixed(3) : "?") + ", after ASD " +
+      (f.afterAsd !== null ? f.afterAsd.toFixed(3) : "?") + "). " +
+      "This can occur when the matching algorithm prioritizes balance on other covariates.");
+  }
+  return parts.join(" ");
+}
+
+function _reanalysisGuidance(f) {
+  var label = f.label;
+  var isKey = f.rules.indexOf("R4") >= 0;
+  var imbalanced = f.rules.indexOf("R1") >= 0;
+  var worsened = f.rules.indexOf("R2") >= 0;
+  var suggestions = [];
+
+  if (isKey && imbalanced) {
+    suggestions.push("Re-run TriNetX analysis with exact matching on " + label + " categories, or use a tighter caliper (0.05 instead of 0.10).");
+    suggestions.push("Alternatively, remove " + label + " from the matching model and adjust for it in the outcome regression.");
+  } else if (imbalanced && worsened) {
+    suggestions.push("Consider removing " + label + " from the matching model and using it as a covariate in the outcome regression instead.");
+  } else if (imbalanced) {
+    suggestions.push("Consider covariate adjustment for " + label + " in the outcome model, or stratified analysis.");
+  } else if (worsened) {
+    suggestions.push("Consider removing " + label + " from the matching model and using it as a covariate in the outcome regression instead.");
+  }
+  return suggestions;
+}
+
 function renderBalanceQC(qc) {
   if (!qc || !qc.flags) return "";
   var v = qc.verdict || "";
@@ -1393,10 +1454,10 @@ function renderBalanceQC(qc) {
   if (qc.flags.length > 0) {
     html += '<div class="qc-summary">';
     var parts = [];
-    if (counts.CRITICAL) parts.push('<span class="badge-sm critical">' + counts.CRITICAL + ' critical</span>');
-    if (counts.HIGH) parts.push('<span class="badge-sm high">' + counts.HIGH + ' high</span>');
-    if (counts.MODERATE) parts.push('<span class="badge-sm moderate">' + counts.MODERATE + ' moderate</span>');
-    if (counts.INFO) parts.push('<span class="badge-sm info">' + counts.INFO + ' info</span>');
+    if (counts.CRITICAL) parts.push('<span class="badge-sm critical">' + counts.CRITICAL + ' Critical</span>');
+    if (counts.HIGH) parts.push('<span class="badge-sm high">' + counts.HIGH + ' High</span>');
+    if (counts.MODERATE) parts.push('<span class="badge-sm moderate">' + counts.MODERATE + ' Moderate</span>');
+    if (counts.INFO) parts.push('<span class="badge-sm info">' + counts.INFO + ' Info</span>');
     html += parts.join(" ") + " &nbsp;ASD threshold: " + qc.threshold;
     html += "</div>";
 
@@ -1407,7 +1468,7 @@ function renderBalanceQC(qc) {
       var f = qc.flags[j];
       html += "<tr>";
       html += "<td>" + esc(f.label) + "</td>";
-      html += '<td><span class="qc-sev ' + f.severity + '">' + f.severity + "</span></td>";
+      html += '<td><span class="qc-sev ' + f.severity + '">' + _sevLabel(f.severity) + "</span></td>";
       html += "<td>" + esc(f.rules.join(", ")) + "</td>";
       html += "<td>" + (f.beforeAsd !== null ? f.beforeAsd.toFixed(3) : "&mdash;") + "</td>";
       html += "<td>" + (f.afterAsd !== null ? f.afterAsd.toFixed(3) : "suppressed") + "</td>";
@@ -1420,19 +1481,49 @@ function renderBalanceQC(qc) {
     html += '<div class="qc-summary">All post-match covariates have ASD &le; ' + qc.threshold + ". No balance flags.</div>";
   }
 
-  /* Templated Limitations wording for CRITICAL / HIGH flags */
+  /* Why this happened + Re-analysis guidance + Limitations for CRITICAL / HIGH flags */
   var hasCritical = counts.CRITICAL > 0;
   var hasHigh = counts.HIGH > 0;
   if (hasCritical || hasHigh) {
-    var limItems = [];
+    var critHighFlags = [];
     for (var k = 0; k < qc.flags.length; k++) {
       var fl = qc.flags[k];
-      if (fl.severity === "CRITICAL" || fl.severity === "HIGH") {
-        limItems.push(fl.label + " (post-match ASD " + (fl.afterAsd !== null ? fl.afterAsd.toFixed(3) : "N/A") + ")");
+      if (fl.severity === "CRITICAL" || fl.severity === "HIGH") critHighFlags.push(fl);
+    }
+
+    /* Why this happened */
+    html += '<div class="qc-why">';
+    html += '<div class="qc-why-title">Why this happened:</div>';
+    for (var w = 0; w < critHighFlags.length; w++) {
+      var why = _whyExplanation(critHighFlags[w]);
+      if (why) html += "<div style='margin-bottom:6px;'>&bull; " + esc(why) + "</div>";
+    }
+    html += "</div>";
+
+    /* Recommended re-analysis */
+    html += '<div class="qc-guidance">';
+    html += '<div class="qc-guidance-title">Recommended re-analysis:</div>';
+    html += "<ul style='margin:0;padding-left:0;list-style:none;'>";
+    var seen = {};
+    for (var g = 0; g < critHighFlags.length; g++) {
+      var suggestions = _reanalysisGuidance(critHighFlags[g]);
+      for (var s = 0; s < suggestions.length; s++) {
+        if (!seen[suggestions[s]]) {
+          seen[suggestions[s]] = true;
+          html += "<li>&rarr; " + esc(suggestions[s]) + "</li>";
+        }
       }
     }
+    html += "</ul></div>";
+
+    /* Limitations wording */
+    var limItems = [];
+    for (var k2 = 0; k2 < critHighFlags.length; k2++) {
+      var fl2 = critHighFlags[k2];
+      limItems.push(fl2.label + " (post-match ASD " + (fl2.afterAsd !== null ? fl2.afterAsd.toFixed(3) : "N/A") + ")");
+    }
     html += '<div class="qc-limitations">';
-    html += '<div class="qc-limitations-title">Suggested Limitations wording:</div>';
+    html += '<div class="qc-limitations-title">If this imbalance persists after re-analysis, include the following in your Limitations section:</div>';
     if (hasCritical) {
       html += "Propensity-score matching did not achieve adequate balance for " + esc(limItems.join("; ")) +
         ". Residual confounding may bias the treatment effect estimate; results should be interpreted with caution and re-analysis with exact matching or tighter caliper settings is recommended.";
