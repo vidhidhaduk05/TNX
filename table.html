@@ -465,6 +465,25 @@ function rowKey(r) {
 }
 
 /* ---------------- cohort name / metadata helpers ---------------- */
+function smartCase(s) {
+  /* Preserve acronyms (2+ consecutive uppercase letters, including
+     hyphenated forms like CAR-T, GLP-1RA) while lowercasing other words. */
+  if (!s) return "";
+  return s.split(/(\s+)/).map(function(tok) {
+    if (/^\s+$/.test(tok)) return tok;
+    /* If token contains a 2+ uppercase run, it likely has an acronym —
+       preserve all uppercase letters in that token, lowercase the rest. */
+    if (/[A-Z]{2,}/.test(tok)) {
+      return tok.split('').map(function(ch) {
+        if (ch >= 'A' && ch <= 'Z') return ch;
+        if (ch >= 'a' && ch <= 'z') return ch.toLowerCase();
+        return ch;
+      }).join('');
+    }
+    return tok.toLowerCase();
+  }).join("");
+}
+
 function cleanCohortHeader(rawName) {
   if (!rawName) return "";
   if (/Standalone\s+MMAE/i.test(rawName)) return "Standalone MMAE";
@@ -472,7 +491,8 @@ function cleanCohortHeader(rawName) {
   if (/MM\s+alone/i.test(rawName)) return "Medical management";
   if (/Surgery\s+alone/i.test(rawName)) return "Surgery alone";
   var s = rawName.replace(/^[A-Z]+:\s*/i, "").replace(/\s*PLT\s*<\s*\d+\s*k/i, "").trim();
-  return s;
+  var sc = smartCase(s);
+  return sc.charAt(0).toUpperCase() + sc.slice(1);
 }
 
 function cleanCohortTitle(rawName) {
@@ -481,18 +501,21 @@ function cleanCohortTitle(rawName) {
   if (/Surgery\s*\+\s*MMAE/i.test(rawName)) return "surgery plus MMAE";
   if (/MM\s+alone/i.test(rawName)) return "medical management";
   if (/Surgery\s+alone/i.test(rawName)) return "surgery alone";
-  var s = rawName.replace(/^[A-Z]+:\s*/i, "").replace(/\s*PLT\s*<\s*\d+\s*k/i, "").trim().toLowerCase();
-  return s;
+  var s = rawName.replace(/^[A-Z]+:\s*/i, "").replace(/\s*PLT\s*<\s*\d+\s*k/i, "").trim();
+  return smartCase(s);
 }
 
 function detectDiseaseContext(study) {
   var title = study.title || "";
   var m = /:\s*(.+)$/.exec(title);
   var disease = m ? m[1].trim() : title.trim();
+  /* Strip TriNetX report-type artifacts appended to the disease name */
+  disease = disease.replace(/\s*compare\s+(outcomes\s+analysis|baseline\s+characteristics|outcomes)\s*$/i, "");
+  disease = disease.replace(/\s*baseline\s+characteristics\s*$/i, "");
   if (/chronic subdural hematoma/i.test(disease) && !/cSDH/.test(disease)) {
     return "chronic subdural hematoma (cSDH)";
   }
-  return disease.toLowerCase();
+  return smartCase(disease);
 }
 
 function detectPltThreshold(study) {
