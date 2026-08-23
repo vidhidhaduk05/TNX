@@ -49,6 +49,33 @@ h1 { font-family: 'Newsreader', Georgia, serif; font-size: 24px; font-weight: 70
 .tbl-card { background: #ffffff; border: 1px solid var(--line); border-radius: 0; padding: 18px 24px; margin-bottom: 22px; box-shadow: 0 1px 3px rgba(0,0,0,.04); max-width: 1056px; margin-left: auto; margin-right: auto; }
 .tbl-title { font-size: 14.67px; font-weight: bold; margin-bottom: 2px; color: #000000; font-family: "Times New Roman", Times, serif; line-height: 1.1; }
 .tbl-subtitle { font-size: 13.33px; font-style: italic; margin-bottom: 6px; color: #000000; font-family: "Times New Roman", Times, serif; line-height: 1.1; }
+.tbl-footnote { font-size: 11px; font-style: italic; color: #000000; margin-top: 4px; font-family: "Times New Roman", Times, serif; line-height: 1.2; }
+/* PSM Balance QC panel */
+.qc-card { background: #ffffff; border: 1px solid var(--line); border-radius: 0; padding: 18px 24px; margin-bottom: 22px; box-shadow: 0 1px 3px rgba(0,0,0,.04); max-width: 1056px; margin-left: auto; margin-right: auto; }
+.qc-card-title { font-size: 15px; font-weight: bold; margin-bottom: 8px; color: #000; font-family: "Times New Roman", Times, serif; }
+.qc-verdict { font-size: 14px; font-weight: bold; padding: 10px 16px; border-radius: 4px; margin-bottom: 12px; font-family: "Times New Roman", Times, serif; }
+.qc-verdict.ok { background: #e8f5e9; border-left: 4px solid #4caf50; color: #1b5e20; }
+.qc-verdict.moderate { background: #fff8e1; border-left: 4px solid #ffc107; color: #e65100; }
+.qc-verdict.high { background: #fff3e0; border-left: 4px solid #ff9800; color: #bf360c; }
+.qc-verdict.critical { background: #ffebee; border-left: 4px solid #f44336; color: #b71c1c; }
+.qc-summary { font-size: 13px; color: #333; margin-bottom: 10px; font-family: "Times New Roman", Times, serif; }
+.qc-summary .badge-sm { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; margin-right: 6px; }
+.qc-summary .badge-sm.critical { background: #f44336; color: #fff; }
+.qc-summary .badge-sm.high { background: #ff9800; color: #fff; }
+.qc-summary .badge-sm.moderate { background: #ffc107; color: #000; }
+.qc-summary .badge-sm.info { background: #90caf9; color: #000; }
+.qc-table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: "Times New Roman", Times, serif; margin-bottom: 12px; }
+.qc-table th { border-bottom: 1.5px solid #000; border-top: 1.5px solid #000; padding: 4px 6px; text-align: left; font-weight: bold; color: #000; }
+.qc-table td { border-bottom: 0.5px solid #ccc; padding: 3px 6px; color: #000; vertical-align: top; }
+.qc-table tr:last-child td { border-bottom: none; }
+.qc-sev { font-weight: bold; font-size: 11px; padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+.qc-sev.CRITICAL { background: #f44336; color: #fff; }
+.qc-sev.HIGH { background: #ff9800; color: #fff; }
+.qc-sev.MODERATE { background: #ffc107; color: #000; }
+.qc-sev.INFO { background: #90caf9; color: #000; }
+.qc-limitations { font-size: 12px; color: #333; background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px 14px; font-family: "Times New Roman", Times, serif; line-height: 1.4; }
+.qc-limitations-title { font-weight: bold; margin-bottom: 4px; color: #000; }
+.qc-note { font-size: 11px; color: #666; font-style: italic; margin-top: 8px; font-family: "Times New Roman", Times, serif; }
 table.tnx { border-collapse: collapse; font-size: 13.33px; font-family: "Times New Roman", Times, serif; color: #000000; width: 100%; margin: 0 auto; line-height: 1.05; }
 table.tnx td { padding: 1px 4px; vertical-align: middle; font-family: "Times New Roman", Times, serif; color: #000000; border: none; line-height: 1.05; }
 table.tnx tr.top-header td { border-top: 2px solid #000000; border-bottom: 0.75pt solid #000000; font-weight: bold; text-align: center; padding: 2px 4px; }
@@ -380,6 +407,9 @@ var OMIT_CODES = { "F17.210": true };
 function normalizeLabel(label, code) {
   var lab = label.trim();
   if (code === "AI" || lab === "Age at Index") return "Age, mean ± SD";
+  lab = lab.replace(/^Nontraumatic\s+/i, "");
+  lab = lab.replace(/\s*\(primary\)/i, "");
+  lab = lab.replace(/\s*\[.*?\]\s*$/, "");
   lab = lab.replace(/, unspecified$/, "");
   lab = lab.replace("(both cohorts)", "").trim();
   if (/^[a-z][a-z0-9\-]*$/.test(lab)) lab = lab.charAt(0).toUpperCase() + lab.slice(1);
@@ -399,7 +429,7 @@ function fmtP(p) {
   var v = parseFloat(p);
   if (isNaN(v)) return String(p);
   if (v === 0) return "<0.001";
-  return v.toFixed(3);
+  return v.toFixed(2);
 }
 
 function fmtAsd(a) {
@@ -429,14 +459,70 @@ function rowKey(r) {
   return r.kind === "bin" ? ("bin|" + r.label) : ("code|" + r.code);
 }
 
+/* ---------------- cohort name / metadata helpers ---------------- */
+function cleanCohortHeader(rawName) {
+  if (!rawName) return "";
+  if (/Standalone\s+MMAE/i.test(rawName)) return "Standalone MMAE";
+  if (/Surgery\s*\+\s*MMAE/i.test(rawName)) return "Surgery + MMAE";
+  if (/MM\s+alone/i.test(rawName)) return "Medical management";
+  if (/Surgery\s+alone/i.test(rawName)) return "Surgery alone";
+  var s = rawName.replace(/^[A-Z]+:\s*/i, "").replace(/\s*PLT\s*<\s*\d+\s*k/i, "").trim();
+  return s;
+}
+
+function cleanCohortTitle(rawName) {
+  if (!rawName) return "";
+  if (/Standalone\s+MMAE/i.test(rawName)) return "standalone MMAE";
+  if (/Surgery\s*\+\s*MMAE/i.test(rawName)) return "surgery plus MMAE";
+  if (/MM\s+alone/i.test(rawName)) return "medical management";
+  if (/Surgery\s+alone/i.test(rawName)) return "surgery alone";
+  var s = rawName.replace(/^[A-Z]+:\s*/i, "").replace(/\s*PLT\s*<\s*\d+\s*k/i, "").trim().toLowerCase();
+  return s;
+}
+
+function detectDiseaseContext(study) {
+  var title = study.title || "";
+  var m = /:\s*(.+)$/.exec(title);
+  var disease = m ? m[1].trim() : title.trim();
+  if (/chronic subdural hematoma/i.test(disease) && !/cSDH/.test(disease)) {
+    return "chronic subdural hematoma (cSDH)";
+  }
+  return disease.toLowerCase();
+}
+
+function detectPltThreshold(study) {
+  var combined = (study.cohort1 || "") + " " + (study.cohort2 || "");
+  var m = /PLT\s*<\s*(\d+)\s*k/i.exec(combined);
+  return m ? m[1] : "100";
+}
+
+function timeWindowWords(study) {
+  var end = study.time_window ? study.time_window[1] : null;
+  if (!end) return "Ninety-day";
+  var m = /(\d+)\s*days?/i.exec(end);
+  if (!m) return "Ninety-day";
+  var n = parseInt(m[1], 10);
+  var words = { 30: "Thirty-day", 60: "Sixty-day", 90: "Ninety-day", 180: "One-hundred-eighty-day", 365: "Three-hundred-sixty-five-day" };
+  return words[n] || (n + "-day");
+}
+
+function fmtLabRange(lo, hi, unit) {
+  var u = String(unit || "").replace(/10\*3\/uL/i, "×10³/µL");
+  return lo + "–" + hi + " " + u;
+}
+
 function buildTable1(study) {
   var c1 = study.cohort1, c2 = study.cohort2;
   var nb = study.phase_ns.before, na = study.phase_ns.after;
+  var h1 = cleanCohortHeader(c1), h2 = cleanCohortHeader(c2);
+  var t1 = cleanCohortTitle(c1), t2 = cleanCohortTitle(c2);
+  var disease = detectDiseaseContext(study);
+  var plt = detectPltThreshold(study);
   var rows = [];
-  rows.push(["Table 1: Patient Characteristics Before and After Propensity Score Matching (PSM) — " + c1 + " vs " + c2]);
-  rows.push(["Characteristics — mean ± SD, %(n)",
-    c1 + " (N=" + nb[0].toLocaleString("en-US") + ")", c2 + " (N=" + nb[1].toLocaleString("en-US") + ")", "P-value", "ASD",
-    c1 + " (N=" + na[0].toLocaleString("en-US") + ")", c2 + " (N=" + na[1].toLocaleString("en-US") + ")", "P-value", "ASD"]);
+  rows.push(["Table 1. Baseline characteristics before and after propensity-score matching: " + t1 + " versus " + t2 + " in " + disease + " with platelets <" + plt + "×10³/µL."]);
+  rows.push(["Characteristic",
+    h1 + " (N=" + nb[0].toLocaleString("en-US") + ")", h2 + " (N=" + nb[1].toLocaleString("en-US") + ")", "P-value", "ASD",
+    h1 + " (N=" + na[0].toLocaleString("en-US") + ")", h2 + " (N=" + na[1].toLocaleString("en-US") + ")", "P-value", "ASD"]);
 
   var afterSecs = {};
   (study.table1.after || []).forEach(function (s) { afterSecs[s.name] = s; });
@@ -449,7 +535,7 @@ function buildTable1(study) {
     sec.rows.forEach(function (br) {
       if (br.kind !== "bin" && OMIT_CODES[br.code]) return; // drop omitted covariate rows
       var ar = aByKey[rowKey(br)];
-      var label = br.kind === "bin" ? br.label
+      var label = br.kind === "bin" ? fmtLabRange(br.lo, br.hi, br.unit)
         : (LABEL_BY_CODE[br.code] || normalizeLabel(br.label, br.code));
       var b1, b2, a1, a2;
       if (br.kind === "cont") {
@@ -471,11 +557,15 @@ function buildTable1(study) {
 function buildTable2(study) {
   var c1 = study.cohort1, c2 = study.cohort2;
   var na = study.phase_ns.after;
+  var h1 = cleanCohortHeader(c1), h2 = cleanCohortHeader(c2);
+  var disease = detectDiseaseContext(study);
+  var plt = detectPltThreshold(study);
+  var tw = timeWindowWords(study);
   var rows = [];
-  rows.push(["Table 2: Outcomes"]);
+  rows.push(["Table 2. " + tw + " outcomes in " + disease + " with platelets <" + plt + "×10³/µL."]);
   rows.push(["Outcomes %(n)",
-    c1 + " (N=" + na[0].toLocaleString("en-US") + ")",
-    c2 + " (N=" + na[1].toLocaleString("en-US") + ")",
+    h1 + " (N=" + na[0].toLocaleString("en-US") + ")",
+    h2 + " (N=" + na[1].toLocaleString("en-US") + ")",
     "Event probability rate", "P-value", "HR [95% CI]"]);
   study.outcomes.forEach(function (o) {
     var c1p = _num(o.c1_risk) !== null ? parseFloat(o.c1_risk) * 100 : null;
@@ -485,8 +575,8 @@ function buildTable2(study) {
 
     var c1_cell = (c1p !== null && o.c1_n_outcome && !isNaN(parseInt(o.c1_n_outcome, 10))) ? (c1p.toFixed(1) + "% (" + parseInt(o.c1_n_outcome, 10).toLocaleString("en-US") + ")") : MISSING;
     var c2_cell = (c2p !== null && o.c2_n_outcome && !isNaN(parseInt(o.c2_n_outcome, 10))) ? (c2p.toFixed(1) + "% (" + parseInt(o.c2_n_outcome, 10).toLocaleString("en-US") + ")") : MISSING;
-    var ev_cell = (c1e !== null ? c1e.toFixed(2) + "%" : MISSING) + " vs " + (c2e !== null ? c2e.toFixed(2) + "%" : MISSING);
-    var hr_cell = (o.hr && o.hr_lo && o.hr_hi && !isNaN(parseFloat(o.hr))) ? (parseFloat(o.hr).toFixed(3) + " [" + parseFloat(o.hr_lo).toFixed(3) + "-" + parseFloat(o.hr_hi).toFixed(3) + "]") : MISSING;
+    var ev_cell = (c1e !== null ? c1e.toFixed(1) + "%" : MISSING) + " vs " + (c2e !== null ? c2e.toFixed(1) + "%" : MISSING);
+    var hr_cell = (o.hr && o.hr_lo && o.hr_hi && !isNaN(parseFloat(o.hr))) ? (parseFloat(o.hr).toFixed(2) + " [" + parseFloat(o.hr_lo).toFixed(2) + "-" + parseFloat(o.hr_hi).toFixed(2) + "]") : MISSING;
 
     rows.push([o.outcome, c1_cell, c2_cell, ev_cell, fmtP(o.logrank_p), hr_cell]);
   });
@@ -834,7 +924,15 @@ function _expP(p) {
   if (p === null || p === undefined || p === "--") return MISSING;
   if (p === "<0.001") return "<0.001";
   var v = parseFloat(p);
-  return v === 0 ? "<0.001" : v.toFixed(3);
+  return v === 0 ? "<0.001" : v.toFixed(2);
+}
+
+function _expAsd(a) {
+  if (a === null || a === undefined || a === "--") return MISSING;
+  if (a === "<0.001") return "<0.001";
+  var v = parseFloat(a);
+  if (isNaN(v)) return MISSING;
+  return v.toFixed(3);
 }
 
 function verifyTable1(study, t1Rows) {
@@ -881,8 +979,8 @@ function verifyTable1(study, t1Rows) {
       });
       if (String(row[cols[2]]) !== MISSING && String(row[cols[2]]) !== _expP(s.p))
         problems.push(row[0] + " [" + ph + "] p grid=" + row[cols[2]] + " text->" + _expP(s.p));
-      if (String(row[cols[3]]) !== MISSING && String(row[cols[3]]) !== _expP(s.asd))
-        problems.push(row[0] + " [" + ph + "] asd grid=" + row[cols[3]] + " text->" + _expP(s.asd));
+      if (String(row[cols[3]]) !== MISSING && String(row[cols[3]]) !== _expAsd(s.asd))
+        problems.push(row[0] + " [" + ph + "] asd grid=" + row[cols[3]] + " text->" + _expAsd(s.asd));
     });
   });
   return [problems.length === 0, problems];
@@ -962,6 +1060,119 @@ function verifySuppression(cleanRows, maskedRows, changes) {
   return [problems.length === 0, problems];
 }
 
+/* ============================================================================
+ * PSM Balance QC — covariate-balance red-flag detection (R1–R7)
+ * Flags ASD threshold breaches, worsening after matching, direction-of-bias,
+ * key-confounder status, and small-cell suppression. Returns a verdict and
+ * per-covariate flags for the UI panel.
+ * ==========================================================================*/
+function _parseMean(cell) {
+  if (!cell || cell === MISSING) return null;
+  var m = /^([\d.]+)\s*±/.exec(String(cell).trim());
+  return m ? parseFloat(m[1]) : null;
+}
+
+function psmBalanceQC(study, t1Rows) {
+  var ASD_THRESHOLD = 0.10;
+  var flags = [];
+
+  var combined = (study.cohort1 || "") + " " + (study.cohort2 || "");
+  var hasPlatelet = /plt|platelet/i.test(combined);
+  var keyKeywords = hasPlatelet ? ["platelet", "age"] : ["age"];
+  var favorableDir = { "platelet": "higher", "age": "lower" };
+
+  for (var i = 2; i < t1Rows.length; i++) {
+    var row = t1Rows[i];
+    if (row.length < 9) continue;
+    if (row[1] === "" && row[2] === "") continue;
+
+    var label = row[0];
+    var beforeAsd = _num(row[4]);
+    var afterAsd = _num(row[8]);
+
+    if (afterAsd === null) {
+      if (String(row[8]) === MISSING) {
+        flags.push({ label: label, severity: "INFO", rules: ["R5"],
+          message: "ASD suppressed (small-cell count \u226410) \u2014 unverifiable",
+          beforeAsd: beforeAsd, afterAsd: null, direction: "n/a" });
+      }
+      continue;
+    }
+
+    var r1 = afterAsd > ASD_THRESHOLD;
+    var r2 = (beforeAsd !== null) && (afterAsd > beforeAsd + 0.001);
+
+    var labelLower = label.toLowerCase();
+    var isKey = false, matchedKeyword = null;
+    for (var k = 0; k < keyKeywords.length; k++) {
+      if (labelLower.indexOf(keyKeywords[k]) >= 0) { isKey = true; matchedKeyword = keyKeywords[k]; break; }
+    }
+
+    var direction = "unknown", favorsIntervention = false;
+    if (matchedKeyword && favorableDir[matchedKeyword]) {
+      var afterMean1 = _parseMean(row[5]);
+      var afterMean2 = _parseMean(row[6]);
+      if (afterMean1 !== null && afterMean2 !== null) {
+        var diff = afterMean1 - afterMean2;
+        var favDir = favorableDir[matchedKeyword];
+        if (favDir === "higher") {
+          direction = diff > 0.001 ? "favors intervention" : (diff < -0.001 ? "favors control" : "balanced");
+          favorsIntervention = diff > 0.001;
+        } else {
+          direction = diff < -0.001 ? "favors intervention" : (diff > 0.001 ? "favors control" : "balanced");
+          favorsIntervention = diff < -0.001;
+        }
+      }
+    }
+
+    var rules = [];
+    if (r1) rules.push("R1");
+    if (r2) rules.push("R2");
+    if (direction !== "unknown") rules.push("R3");
+    if (isKey) rules.push("R4");
+
+    var severity = null, message = "";
+    if (r1 && r2 && favorsIntervention && isKey) {
+      severity = "CRITICAL";
+      message = "Key confounder imbalanced (ASD " + afterAsd.toFixed(3) + "), worsened after matching, favors intervention. Consider exact matching or caliper on this covariate.";
+    } else if (r1 && isKey) {
+      severity = "HIGH";
+      message = "Key confounder imbalanced after matching (ASD " + afterAsd.toFixed(3) + "). Direction: " + direction + ". Disclose in Limitations; consider covariate adjustment.";
+    } else if (r1 && r2 && favorsIntervention) {
+      severity = "HIGH";
+      message = "Imbalanced (ASD " + afterAsd.toFixed(3) + "), worsened after matching, favors intervention. Disclose in Limitations.";
+    } else if (r1 && r2) {
+      severity = "MODERATE";
+      message = "Imbalanced (ASD " + afterAsd.toFixed(3) + ") and worsened after matching.";
+    } else if (r1) {
+      severity = "MODERATE";
+      message = "Imbalanced after matching (ASD " + afterAsd.toFixed(3) + ").";
+    } else if (r2) {
+      severity = "MODERATE";
+      message = "Worsened after matching (before " + (beforeAsd !== null ? beforeAsd.toFixed(3) : "?") + ", after " + afterAsd.toFixed(3) + ").";
+    }
+
+    if (severity) {
+      flags.push({ label: label, severity: severity, rules: rules, message: message,
+        beforeAsd: beforeAsd, afterAsd: afterAsd, direction: direction });
+    }
+  }
+
+  var hasCritical = flags.some(function(f) { return f.severity === "CRITICAL"; });
+  var hasHigh = flags.some(function(f) { return f.severity === "HIGH"; });
+  var hasModerate = flags.some(function(f) { return f.severity === "MODERATE"; });
+  var hasInfo = flags.some(function(f) { return f.severity === "INFO"; });
+
+  var verdict;
+  if (hasCritical) verdict = "Re-analysis recommended";
+  else if (hasHigh) verdict = "Consider re-analysis; at minimum, detailed Limitations disclosure";
+  else if (hasModerate) verdict = "No re-analysis needed; disclose flagged items in Limitations";
+  else if (hasInfo) verdict = "Balance acceptable; note suppressed cells in Methods";
+  else verdict = "Balance acceptable; no flags";
+
+  return { verdict: verdict, flags: flags, threshold: ASD_THRESHOLD };
+}
+
 /* ---------------- exports ---------------- */
 var api = {
   normalizeText: normalizeText,
@@ -973,6 +1184,8 @@ var api = {
   suppressTable1: suppressTable1,
   verifyTable1: verifyTable1,
   verifySuppression: verifySuppression,
+  psmBalanceQC: psmBalanceQC,
+  timeWindowWords: timeWindowWords,
   THRESHOLD: THRESHOLD, LE: LE, MISSING: MISSING
 };
 if (typeof module !== "undefined" && module.exports) module.exports = api;
@@ -1054,7 +1267,7 @@ function modelT1(t1, study) {
     }
     rows.push(row);
   }
-  return { title: title, subtitle: subtitle, rows: rows, type: "t1" };
+  return { title: title, subtitle: subtitle, rows: rows, type: "t1", footnote: "PSM = propensity-score matching; ASD = absolute standardized difference; MMAE = middle meningeal artery embolization; MM = medical management. Values are mean \u00b1 SD or % (n)." };
 }
 
 function modelT2(t2, study) {
@@ -1096,7 +1309,8 @@ function modelT2(t2, study) {
     }
     rows.push(row);
   }
-  return { title: title, subtitle: subtitle, rows: rows, type: "t2" };
+  var _tw = study ? T.timeWindowWords(study) : "Ninety-day";
+  return { title: title, subtitle: subtitle, rows: rows, type: "t2", footnote: "MMAE = middle meningeal artery embolization; MM = medical management; HR = hazard ratio; CI = confidence interval. Values are % (n); event probability rates are " + _tw + " Kaplan-Meier estimates." };
 }
 
 function modelS1(s1, study) {
@@ -1153,7 +1367,84 @@ function renderModel(model) {
     }
     html += "</tr>";
   }
-  html += "</table></div>";
+  html += "</table>";
+  if (model.footnote) html += '<div class="tbl-footnote">' + esc(model.footnote) + '</div>';
+  html += "</div>";
+  return html;
+}
+
+/* ---------- PSM Balance QC rendering ---------- */
+function renderBalanceQC(qc) {
+  if (!qc || !qc.flags) return "";
+  var v = qc.verdict || "";
+  var cls = "ok";
+  if (/re-analysis recommended/i.test(v)) cls = "critical";
+  else if (/consider re-analysis/i.test(v)) cls = "high";
+  else if (/no re-analysis needed/i.test(v)) cls = "moderate";
+  else if (/note suppressed/i.test(v)) cls = "ok";
+
+  var counts = { CRITICAL: 0, HIGH: 0, MODERATE: 0, INFO: 0 };
+  for (var i = 0; i < qc.flags.length; i++) counts[qc.flags[i].severity] = (counts[qc.flags[i].severity] || 0) + 1;
+
+  var html = '<div class="qc-card">';
+  html += '<div class="qc-card-title">PSM Balance QC &mdash; Covariate Balance Audit</div>';
+  html += '<div class="qc-verdict ' + cls + '">' + esc(v) + '</div>';
+
+  if (qc.flags.length > 0) {
+    html += '<div class="qc-summary">';
+    var parts = [];
+    if (counts.CRITICAL) parts.push('<span class="badge-sm critical">' + counts.CRITICAL + ' critical</span>');
+    if (counts.HIGH) parts.push('<span class="badge-sm high">' + counts.HIGH + ' high</span>');
+    if (counts.MODERATE) parts.push('<span class="badge-sm moderate">' + counts.MODERATE + ' moderate</span>');
+    if (counts.INFO) parts.push('<span class="badge-sm info">' + counts.INFO + ' info</span>');
+    html += parts.join(" ") + " &nbsp;ASD threshold: " + qc.threshold;
+    html += "</div>";
+
+    html += '<table class="qc-table"><thead><tr>';
+    html += "<th>Covariate</th><th>Severity</th><th>Rules</th><th>Before ASD</th><th>After ASD</th><th>Direction</th><th>Notes</th>";
+    html += "</tr></thead><tbody>";
+    for (var j = 0; j < qc.flags.length; j++) {
+      var f = qc.flags[j];
+      html += "<tr>";
+      html += "<td>" + esc(f.label) + "</td>";
+      html += '<td><span class="qc-sev ' + f.severity + '">' + f.severity + "</span></td>";
+      html += "<td>" + esc(f.rules.join(", ")) + "</td>";
+      html += "<td>" + (f.beforeAsd !== null ? f.beforeAsd.toFixed(3) : "&mdash;") + "</td>";
+      html += "<td>" + (f.afterAsd !== null ? f.afterAsd.toFixed(3) : "suppressed") + "</td>";
+      html += "<td>" + esc(f.direction) + "</td>";
+      html += "<td>" + esc(f.message) + "</td>";
+      html += "</tr>";
+    }
+    html += "</tbody></table>";
+  } else {
+    html += '<div class="qc-summary">All post-match covariates have ASD &le; ' + qc.threshold + ". No balance flags.</div>";
+  }
+
+  /* Templated Limitations wording for CRITICAL / HIGH flags */
+  var hasCritical = counts.CRITICAL > 0;
+  var hasHigh = counts.HIGH > 0;
+  if (hasCritical || hasHigh) {
+    var limItems = [];
+    for (var k = 0; k < qc.flags.length; k++) {
+      var fl = qc.flags[k];
+      if (fl.severity === "CRITICAL" || fl.severity === "HIGH") {
+        limItems.push(fl.label + " (post-match ASD " + (fl.afterAsd !== null ? fl.afterAsd.toFixed(3) : "N/A") + ")");
+      }
+    }
+    html += '<div class="qc-limitations">';
+    html += '<div class="qc-limitations-title">Suggested Limitations wording:</div>';
+    if (hasCritical) {
+      html += "Propensity-score matching did not achieve adequate balance for " + esc(limItems.join("; ")) +
+        ". Residual confounding may bias the treatment effect estimate; results should be interpreted with caution and re-analysis with exact matching or tighter caliper settings is recommended.";
+    } else {
+      html += "Propensity-score matching did not fully balance " + esc(limItems.join("; ")) +
+        ". Although residual imbalance is modest, these covariates are disclosed for transparency and may warrant covariate adjustment in sensitivity analyses.";
+    }
+    html += "</div>";
+  }
+
+  html += '<div class="qc-note">Rules: R1 = post-match ASD &gt; 0.10; R2 = ASD worsened after matching; R3 = direction of bias assessed; R4 = key confounder (platelets, age); R5 = ASD suppressed (count &le;10, unverifiable).</div>';
+  html += "</div>";
   return html;
 }
 
@@ -1219,7 +1510,9 @@ function wordHtml(model, widths) {
     + '</style></head><body>'
     + titleHtml + subHtml
     + '<table class="MsoTableGrid" cellspacing="0" cellpadding="0" style="border-collapse:collapse;mso-table-layout-alt:fixed;margin:0 auto;">'
-    + colgroup + body + '</table></body></html>';
+    + colgroup + body + '</table>'
+    + (model.footnote ? '<p style="font-family:Times New Roman,Times,serif;font-size:9pt;font-style:italic;color:#000000;margin:4pt 0 0 0;line-height:1.1;">' + esc(model.footnote) + '</p>' : '')
+    + '</body></html>';
 }
 
 function plainText(model) {
@@ -1375,6 +1668,17 @@ function buildDocxTableXml(model, widths) {
   }
 
   xml += '</w:tbl>';
+  if (model.footnote) {
+    xml += '<w:p><w:pPr><w:spacing w:before="40" w:after="120" w:line="240" w:lineRule="auto"/></w:pPr>'
+      + '<w:r><w:rPr>'
+      + '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>'
+      + '<w:i/><w:iCs/>'
+      + '<w:color w:val="000000"/>'
+      + '<w:sz w:val="18"/><w:szCs w:val="18"/>'
+      + '</w:rPr>'
+      + '<w:t xml:space="preserve">' + escXml(model.footnote) + '</w:t>'
+      + '</w:r></w:p>';
+  }
   return xml;
 }
 
@@ -1464,7 +1768,7 @@ function tableCard(cpId, cpLabel, dlId, dlLabel, model, titlePrefix, scroll) {
     + renderModel(model) + "</div></div>";
 }
 
-function render(study, t1, t2, s1, changes, gate1, gate2, originalFileName) {
+function render(study, t1, t2, s1, changes, gate1, gate2, originalFileName, qcResult) {
   var ok = gate1[0] && gate2[0];
   var badge = ok
     ? '<span class="badge ok">&#10004; Verified &mdash; dual-parser + suppression audit passed</span>'
@@ -1500,6 +1804,8 @@ function render(study, t1, t2, s1, changes, gate1, gate2, originalFileName) {
     html += '<div class="note">No cells required suppression.</div>';
   }
   html += "</div>";
+
+  if (qcResult) html += renderBalanceQC(qcResult);
 
   var m1 = modelT1(t1, study), m2 = modelT2(t2, study), m3 = modelS1(s1, study);
 
@@ -1583,8 +1889,9 @@ async function handleFile(file) {
     var changes = T.suppressTable1(t1);
     var gate1 = T.verifyTable1(study, t1);
     var gate2 = T.verifySuppression(clean, t1, changes);
+    var qcResult = T.psmBalanceQC(study, t1);
     setStatus("");
-    render(study, t1, t2, s1, changes, gate1, gate2, file ? file.name : "");
+    render(study, t1, t2, s1, changes, gate1, gate2, file ? file.name : "", qcResult);
   } catch (e) {
     setStatus('<div class="card"><span class="badge bad">&#10006; Error</span><div class="err">' + esc(e && e.message || e) + "</div></div>");
   }
@@ -1645,6 +1952,7 @@ async function processOne(file) {
     var changes = T.suppressTable1(t1);
     var gate1 = T.verifyTable1(study, t1);
     var gate2 = T.verifySuppression(clean, t1, changes);
+    res.qc = T.psmBalanceQC(study, t1);
     res.study = study; res.t1 = t1; res.t2 = t2; res.s1 = s1;
     res.changes = changes; res.gate1 = gate1; res.gate2 = gate2;
     res.ok = gate1[0] && gate2[0];
