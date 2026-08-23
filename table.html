@@ -1498,8 +1498,8 @@ function _limitationsText(flags, hasCritical, allFlags) {
 
   /* (2) Explain implication — unmeasured confounding / treatment selection bias */
   if (hasKeyConfounder) {
-    parts.push("Treatment selection may reflect patient frailty, goals of care, performance status, clinical stability, and disease severity, none of which are fully captured in this administrative dataset.");
-    parts.push("Residual confounding related to treatment candidacy could account for some or all of the observed association.");
+    parts.push("Treatment selection may reflect clinical factors not fully captured in this administrative dataset, including disease severity, comorbidity burden, functional status, and provider judgment.");
+    parts.push("Residual confounding from these unmeasured factors could account for some or all of the observed association.");
   } else {
     parts.push("Residual confounding from unmeasured covariates may bias the treatment effect estimate.");
   }
