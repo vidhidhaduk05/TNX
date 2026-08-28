@@ -250,29 +250,47 @@ async function lpReadDocxTables(arrayBuffer) {
   const tables = Array.from(holder.querySelectorAll("table"));
   return tables.map(tbl => {
     const rows = Array.from(tbl.querySelectorAll("tr"));
-    // first pass: number of columns = max over rows of sum(colspan)
-    let nc = 0;
     const rowCells = rows.map(tr => Array.from(tr.children).filter(td => /^(TD|TH)$/i.test(td.tagName)));
-    for (const cells of rowCells) {
-      const w = cells.reduce((a, td) => a + (parseInt(td.getAttribute("colspan") || "1", 10)), 0);
-      if (w > nc) nc = w;
-    }
     const nr = rows.length;
-    const expanded = Array.from({length: nr}, () => Array(nc).fill(""));
-    const sparse   = Array.from({length: nr}, () => Array(nc).fill(""));
-    const span     = Array.from({length: nr}, () => Array(nc).fill(1));
+    // Grid placement honoring BOTH colspan and rowspan (vertical merge).
+    // A cell with rowspan>1 occupies its column(s) in the rows below, so
+    // cells in those rows must skip the occupied columns (standard HTML
+    // table grid model). Without this, a vertically merged first-column
+    // header cell shifts the ASD header row one column left and the
+    // P-value columns are misread as the ASD columns.
+    const expanded = Array.from({length: nr}, () => []);
+    const sparse   = Array.from({length: nr}, () => []);
+    const span     = Array.from({length: nr}, () => []);
+    const occupied = Array.from({length: nr}, () => []);
     rows.forEach((tr, r) => {
       let c = 0;
       for (const td of rowCells[r]) {
-        while (c < nc && sparse[r][c] !== "") c++;   // shouldn't happen w/o vMerge, but be safe
+        while (occupied[r][c]) c++;
         const cs = Math.max(1, parseInt(td.getAttribute("colspan") || "1", 10));
+        const rs = Math.max(1, parseInt(td.getAttribute("rowspan") || "1", 10));
         const txt = td.textContent.replace(/\s+/g, " ").trim();
-        for (let k = 0; k < cs && c + k < nc; k++) expanded[r][c + k] = txt;
+        for (let dr = 0; dr < rs && r + dr < nr; dr++) {
+          for (let k = 0; k < cs; k++) {
+            expanded[r + dr][c + k] = txt;
+            occupied[r + dr][c + k] = true;
+          }
+        }
         sparse[r][c] = txt;
         span[r][c] = cs;
         c += cs;
       }
     });
+    // number of columns = widest occupied row (carried cells included)
+    let nc = 0;
+    for (let r = 0; r < nr; r++) if (expanded[r].length > nc) nc = expanded[r].length;
+    // normalize all rows to nc
+    for (let r = 0; r < nr; r++) {
+      for (let c = 0; c < nc; c++) {
+        if (expanded[r][c] === undefined) expanded[r][c] = "";
+        if (sparse[r][c]   === undefined) sparse[r][c]   = "";
+        if (span[r][c]     === undefined) span[r][c]     = 1;
+      }
+    }
     return { expanded, sparse, span, nRow: nr, nCol: nc };
   });
 }
