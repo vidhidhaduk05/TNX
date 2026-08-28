@@ -806,9 +806,20 @@ function svgString() {
   return new XMLSerializer().serializeToString(currentSvg);
 }
 
+// Filename from the title box, stripped of characters invalid in filenames.
+function titleFileName(ext) {
+  const t = ($("title").value.trim() || "love_plot")
+    .replace(/\s*\n\s*/g, " ")       // manual line breaks → space
+    .replace(/[\/\\?%*:|"<>]/g, "")  // strip filesystem-invalid chars
+    .replace(/[\x00-\x1f]/g, "")     // strip control characters
+    .replace(/\s+/g, " ")            // collapse whitespace
+    .trim();
+  return t + "." + ext;
+}
+
 $("dl_svg").addEventListener("click", () => {
   if (!currentSvg) return;
-  downloadBlob(new Blob([svgString()], { type: "image/svg+xml" }), "love_plot.svg");
+  downloadBlob(new Blob([svgString()], { type: "image/svg+xml" }), titleFileName("svg"));
 });
 
 $("dl_png").addEventListener("click", () => {
@@ -825,7 +836,7 @@ $("dl_png").addEventListener("click", () => {
     ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     URL.revokeObjectURL(url);
-    canvas.toBlob(b => downloadBlob(b, "love_plot.png"), "image/png");
+    canvas.toBlob(b => downloadBlob(b, titleFileName("png")), "image/png");
   };
   img.onerror = () => showError("PNG export failed in this browser. Use the SVG download instead.");
   img.src = url;
