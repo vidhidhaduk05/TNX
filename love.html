@@ -682,8 +682,12 @@ async function handleFile(file) {
     const t = lpPickTable(tables);
     parsedData = lpParseTable1(t);
     // Autofill the title box from the table's heading row (box stays editable).
-    const autoTitle = lpTableTitle(t);
-    if (autoTitle) $("title").value = autoTitle;
+    // Replace the "Table 1:" / "Table S2:" prefix with "Figure S1:" / "Figure S2:".
+    let autoTitle = lpTableTitle(t);
+    if (autoTitle) {
+      autoTitle = autoTitle.replace(/^Table\s+(S?\d+)/i, (m, num) => "Figure S" + num.replace(/^S/i, ""));
+      $("title").value = autoTitle;
+    }
     if (!parsedData.rows.length) {
       showError("No covariate rows could be parsed from the detected Table 1. Nothing to plot.");
       parsedData = null;
