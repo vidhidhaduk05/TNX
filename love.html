@@ -488,6 +488,23 @@ function lpParseTable1(t) {
   };
 }
 
+// ---------- Table title extraction (for title-box autofill) ----------
+// Returns the text of the table's heading row: the full-width row closest
+// above the ASD header row (e.g. "Table 1: Baseline characteristics ...").
+// Returns "" when no such row exists, in which case the title box is left
+// untouched.
+function lpTableTitle(t) {
+  let headerRow;
+  try { headerRow = lpFindHeaderRow(t); } catch (e) { return ""; }
+  for (let r = headerRow - 1; r >= 0; r--) {
+    const txt = (t.expanded[r][0] || "").trim();
+    if (!txt) continue;
+    const singleCell = t.sparse[r].filter(c => c.trim()).length === 1 && t.sparse[r][0].trim();
+    if (t.span[r][0] >= t.nCol || singleCell) return txt;
+  }
+  return "";
+}
+
 // ---------- SVG plot renderer (locked aesthetic) ----------
 const NS = "http://www.w3.org/2000/svg";
 function el(name, attrs, parent) {
@@ -651,6 +668,9 @@ async function handleFile(file) {
     const tables = await lpReadDocxTables(buf);
     const t = lpPickTable(tables);
     parsedData = lpParseTable1(t);
+    // Autofill the title box from the table's heading row (box stays editable).
+    const autoTitle = lpTableTitle(t);
+    if (autoTitle) $("title").value = autoTitle;
     if (!parsedData.rows.length) {
       showError("No covariate rows could be parsed from the detected Table 1. Nothing to plot.");
       parsedData = null;
