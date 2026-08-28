@@ -570,13 +570,16 @@ function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').repla
 function fmtN(n) { return n == null ? '\u2014' : Number(n).toLocaleString('en-US'); }
 
 function wrapText(text, font, maxW, measure) {
-  var words = String(text).split(/\s+/), lines = [], cur = '';
-  for (var i = 0; i < words.length; i++) {
-    var trial = cur ? cur + ' ' + words[i] : words[i];
-    if (measure(trial, font) <= maxW || !cur) cur = trial;
-    else { lines.push(cur); cur = words[i]; }
-  }
-  if (cur) lines.push(cur);
+  var lines = [];
+  String(text).split('\n').forEach(function (segment) {
+    var words = segment.split(/\s+/), cur = '';
+    for (var i = 0; i < words.length; i++) {
+      var trial = cur ? cur + ' ' + words[i] : words[i];
+      if (measure(trial, font) <= maxW || !cur) cur = trial;
+      else { lines.push(cur); cur = words[i]; }
+    }
+    if (cur) lines.push(cur);
+  });
   return lines;
 }
 
@@ -1112,7 +1115,7 @@ if (typeof window !== 'undefined') (function () {
   function renderForm() {
     var st = state, h = '';
     h += '<fieldset><legend>Analysis</legend>' +
-      '<label class="f">Title</label><input type="text" data-path="meta.title" value="' + esc(st.meta.title) + '">' +
+      '<label class="f">Title</label><textarea rows="2" data-path="meta.title" style="resize:vertical;width:100%;font:inherit" onkeydown="if(event.key===\'Enter\'){event.preventDefault();var t=this.value,s=this.selectionStart,e=this.selectionEnd;this.value=t.slice(0,s)+\'\\n\'+t.slice(e);this.selectionStart=this.selectionEnd=s+1;this.dispatchEvent(new Event(\'input\',{bubbles:true}));}">' + esc(st.meta.title) + '</textarea>' +
       '<div class="row3"><div><label class="f">Network</label><input type="text" data-path="meta.network" value="' + esc(st.meta.network) + '"></div>' +
       '<div><label class="f">HCOs</label><input type="number" data-path="meta.hcos" value="' + esc(st.meta.hcos) + '"></div>' +
       '<div><label class="f">Date</label><input type="text" data-path="meta.date" value="' + esc(st.meta.date) + '"></div></div></fieldset>';
