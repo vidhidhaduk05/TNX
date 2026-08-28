@@ -563,7 +563,10 @@ function buildPlotSvg(rows, title) {
   const rowH = plotH / n;
 
   const xMax = Math.max(...rows.map(r => r.ASD_before)) * 1.05;
-  const x = v => margin.left + (v / xMax) * plotW;
+  // mirror ggplot expand = expansion(mult = c(0.02, 0.02)): inset both ends
+  // by 2% of xMax so near-zero markers stay fully inside the panel
+  const xLo = -0.02 * xMax, xHi = xMax * 1.02;
+  const x = v => margin.left + ((v - xLo) / (xHi - xLo)) * plotW;
   const yC = i => margin.top + (i + 0.5) * rowH;
 
   const svg = el("svg", {
