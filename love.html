@@ -704,7 +704,7 @@ async function handleFile(file) {
         desc = desc.replace(/^the\s+/i, "");  // avoid "in the the ..."
         desc = desc.trim();
         if (!desc) desc = tm[2].trim();  // fallback: use full heading text
-        autoTitle = "Figure S" + figNum + ": Love plot of covariate balance before and after propensity score matching in the " + desc + " from " + tableRef;
+        autoTitle = "Figure S" + figNum + ": Love plot of covariate balance before and after propensity score matching in the " + desc;
       }
       $("title").value = autoTitle;
     }
