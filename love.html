@@ -99,12 +99,8 @@
     <input type="file" id="file" accept=".docx">
     <div class="row">
       <div class="field">
-        <label for="title">Title (first line)</label>
+        <label for="title">Title</label>
         <input type="text" id="title" value="Supplemental Figure 1: Covariate balance before and after propensity score matching">
-      </div>
-      <div class="field">
-        <label for="subtitle">Subtitle (second line, optional)</label>
-        <input type="text" id="subtitle" value="Standalone MMAE vs Medical management">
       </div>
     </div>
     <div class="btns">
@@ -532,17 +528,35 @@ function prettyBreaks(xMax) {
   return breaks;
 }
 
-function buildPlotSvg(rows, title, subtitle) {
+function buildPlotSvg(rows, title) {
   const n = rows.length;
   // geometry: 8 in wide @ 120 px/in → 960 px; height = max(6, 0.16n+1.5) in
   const W = 960;
   const H = Math.max(6, 0.16 * n + 1.5) * 120;
-  const margin = { top: subtitle.trim() ? 78 : 58, right: 24, bottom: 64, left: 0 };
   // left margin sized to longest label (8px font ≈ 0.5 * fontsize per char, Times)
   const meas = document.createElement("canvas").getContext("2d");
   meas.font = "15px " + LP_FONT;
   const maxLabelW = Math.max(...rows.map(r => meas.measureText(r.label).width));
-  margin.left = Math.min(480, Math.max(170, Math.ceil(maxLabelW) + 20));
+  const leftMargin = Math.min(480, Math.max(170, Math.ceil(maxLabelW) + 20));
+
+  // Wrap the title into multiple lines that fit within the plot width.
+  const titleFont = "bold 19px " + LP_FONT;
+  meas.font = titleFont;
+  const titleMaxW = W - 20;   // 10px left padding, 10px right slack
+  const titleLines = [];
+  for (const rawLine of title.split("\n")) {
+    const words = rawLine.split(/\s+/).filter(w => w);
+    let line = "";
+    for (const w of words) {
+      const test = line ? line + " " + w : w;
+      if (meas.measureText(test).width <= titleMaxW) line = test;
+      else { if (line) titleLines.push(line); line = w; }
+    }
+    if (line) titleLines.push(line);
+  }
+  const titleLineH = 24;
+  const titleBlockH = titleLines.length * titleLineH;
+  const margin = { top: 20 + titleBlockH + 18, right: 24, bottom: 64, left: leftMargin };
 
   const plotW = W - margin.left - margin.right;
   const plotH = H - margin.top - margin.bottom;
@@ -558,12 +572,11 @@ function buildPlotSvg(rows, title, subtitle) {
   });
   el("rect", { x: 0, y: 0, width: W, height: H, fill: "#fff" }, svg);
 
-  // titles (bold, top-left, plot-position)
+  // title (bold, top-left, wrapped across multiple lines)
   let ty = 26;
-  textEl({ x: 10, y: ty, "font-size": 19, "font-weight": "bold" }, title, svg);
-  if (subtitle.trim()) {
-    ty += 24;
-    textEl({ x: 10, y: ty, "font-size": 19, "font-weight": "bold" }, subtitle, svg);
+  for (const line of titleLines) {
+    textEl({ x: 10, y: ty, "font-size": 19, "font-weight": "bold" }, line, svg);
+    ty += titleLineH;
   }
 
   // alternating row bands (band for row i: even index → white, odd → gray;
@@ -744,10 +757,9 @@ function renderPlot() {
     return;
   }
   const title = $("title").value.trim() || "Love plot";
-  const subtitle = $("subtitle").value;
   const wrap = $("plotwrap");
   wrap.innerHTML = "";
-  currentSvg = buildPlotSvg(selectedRows, title, subtitle);
+  currentSvg = buildPlotSvg(selectedRows, title);
   wrap.appendChild(currentSvg);
   $("plotcard").style.display = "block";
   $("dl_png").disabled = false;
@@ -794,7 +806,6 @@ $("dl_png").addEventListener("click", () => {
 
 $("render").addEventListener("click", renderPlot);
 $("title").addEventListener("input", () => { if (parsedData) renderPlot(); });
-$("subtitle").addEventListener("input", () => { if (parsedData) renderPlot(); });
 
 $("diagtable").addEventListener("change", (e) => {
   if (e.target.id === "toggleAll") {
