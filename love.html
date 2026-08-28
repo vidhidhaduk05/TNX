@@ -683,16 +683,28 @@ async function handleFile(file) {
     parsedData = lpParseTable1(t);
     // Autofill the title box from the table's heading row (box stays editable).
     // Build: "Figure S{n}: Love plot of covariate balance before and after
-    // propensity score matching in the {cohort} from table {ref}"
+    // propensity score matching in the {description} from table {ref}"
+    // Works for any paper: strips the "Table X:" prefix and common Table-1
+    // boilerplate to extract the cohort/population description.
     let autoTitle = lpTableTitle(t);
     if (autoTitle) {
-      const tm = autoTitle.match(/^Table\s+(S?\d+)/i);
+      const tm = autoTitle.match(/^Table\s+(S?\d+)\s*:\s*(.+)$/i)
+                 || autoTitle.match(/^Table\s+(S?\d+)\s+(.+)$/i);
       if (tm) {
         const figNum = tm[1].replace(/^S/i, "");
-        const tableRef = tm[0].toLowerCase();
-        const cm = autoTitle.match(/matching\s+in\s+(.+)$/i);
-        const cohort = cm ? cm[1].trim() : "";
-        autoTitle = "Figure S" + figNum + ": Love plot of covariate balance before and after propensity score matching in the " + cohort + " from " + tableRef;
+        const tableRef = ("Table " + tm[1]).toLowerCase();
+        let desc = tm[2].trim();
+        // Strip common Table-1 boilerplate to isolate the cohort description
+        desc = desc.replace(/^Baseline\s+characteristics\s+of\s+before\s+and\s+after\s+propensity\s+score\s+matching\s+in\s+/i, "");
+        desc = desc.replace(/^Baseline\s+characteristics\s+(?:of\s+)?/i, "");
+        desc = desc.replace(/^Demographics\s+(?:of\s+)?/i, "");
+        desc = desc.replace(/^Patient\s+characteristics\s+(?:of\s+)?/i, "");
+        desc = desc.replace(/^Characteristics\s+(?:of\s+)?/i, "");
+        desc = desc.replace(/^Covariate\s+balance\s+(?:of\s+)?/i, "");
+        desc = desc.replace(/^the\s+/i, "");  // avoid "in the the ..."
+        desc = desc.trim();
+        if (!desc) desc = tm[2].trim();  // fallback: use full heading text
+        autoTitle = "Figure S" + figNum + ": Love plot of covariate balance before and after propensity score matching in the " + desc + " from " + tableRef;
       }
       $("title").value = autoTitle;
     }
