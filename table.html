@@ -936,7 +936,7 @@ function indepParsePhase(block, codes) {
   var tailRe = new RegExp("([\\d,]+) ([\\d,]+) (\\d+(?:\\.\\d+)?)% (\\d+(?:\\.\\d+)?)% (" + PA + ") (" + PA + ")(?:\\s|$)");
   codes.forEach(function (code) {
     res[code] = null;
-    var cre = new RegExp("^(?:1 2 )?" + code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b");
+    var cre = new RegExp("^(?:1 2 )?" + code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?:\\s|$)");
     for (var i = 0; i < rows.length; i++) {
       var rt = rows[i].trim();
       if (!cre.test(rt)) continue;
