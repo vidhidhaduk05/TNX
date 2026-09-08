@@ -431,10 +431,12 @@ function _num(x) {
 
 function fmtP(p) {
   if (p === null || p === undefined || p === "--" || p === "" || p === "-") return MISSING;
+  if (p === "<0.001" || String(p).trim() === "<0.001") return "<0.001";
   var v = parseFloat(p);
   if (isNaN(v)) return String(p);
-  if (v === 0) return "<0.001";
-  return v.toFixed(2);
+  if (v === 0 || v < 0.001) return "<0.001";
+  if (v >= 0.01) return v.toFixed(2);
+  return v.toFixed(3);
 }
 
 function fmtAsd(a) {
@@ -950,9 +952,12 @@ function indepParsePhase(block, codes) {
 
 function _expP(p) {
   if (p === null || p === undefined || p === "--") return MISSING;
-  if (p === "<0.001") return "<0.001";
+  if (p === "<0.001" || String(p).trim() === "<0.001") return "<0.001";
   var v = parseFloat(p);
-  return v === 0 ? "<0.001" : v.toFixed(2);
+  if (isNaN(v)) return String(p);
+  if (v === 0 || v < 0.001) return "<0.001";
+  if (v >= 0.01) return v.toFixed(2);
+  return v.toFixed(3);
 }
 
 function _expAsd(a) {
