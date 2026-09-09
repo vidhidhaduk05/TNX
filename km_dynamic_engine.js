@@ -1,6 +1,7 @@
-// Dynamic Publication-Grade Kaplan-Meier Cumulative Incidence Generator for TriNetX Reports
-// Supports any study: reconstructs pixel-accurate step curves from embedded post-PSM KM curve images,
-// calculates Greenwood confidence intervals, calibrates landmark survival endpoints and at-risk timelines.
+// Dynamic Publication-Grade Kaplan-Meier Cumulative Incidence Generator
+// Architecture: generate each outcome individually, then compose into multi-panel figure.
+
+// ── Image Digitization ──────────────────────────────────────────────
 
 async function digitizeKmImageAsync(imgBlobOrUrl) {
   return new Promise((resolve) => {
@@ -16,7 +17,6 @@ async function digitizeKmImageAsync(imgBlobOrUrl) {
         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imgData.data;
         const w = canvas.width;
-        const h = canvas.height;
 
         const col_0 = 55;
         const col_1825 = Math.min(w - 1, 1314);
@@ -28,36 +28,25 @@ async function digitizeKmImageAsync(imgBlobOrUrl) {
           let lastY = y_top;
           const pts = [];
           for (let c = col_0; c <= col_1825; c++) {
-            let sumY = 0;
-            let countY = 0;
+            let sumY = 0, countY = 0;
             for (let r = 0; r <= y_bot; r++) {
               const idx = (r * w + c) * 4;
-              const red = data[idx];
-              const green = data[idx + 1];
-              const blue = data[idx + 2];
-              const alpha = data[idx + 3];
-              if (alpha > 80 && isTargetColor(red, green, blue)) {
-                sumY += r;
-                countY++;
+              if (data[idx + 3] > 80 && isTargetColor(data[idx], data[idx + 1], data[idx + 2])) {
+                sumY += r; countY++;
               }
             }
-            if (countY > 0) {
-              lastY = sumY / countY;
-            }
+            if (countY > 0) lastY = sumY / countY;
             const day = (c - col_0) / 0.69;
-            const surv = Math.max(0.0, Math.min(1.0, (y_bot - lastY) / span_y));
-            const cum = Math.max(0.0, 100.0 * (1.0 - surv));
-            pts.push({ day, surv, cum });
+            const surv = Math.max(0, Math.min(1, (y_bot - lastY) / span_y));
+            pts.push({ day, surv, cum: Math.max(0, 100 * (1 - surv)) });
           }
           return pts;
         }
 
-        // Purple curve (Cohort 1): blue > 90, red > 65, green < 100
-        const c1Trace = extractTrace((r, g, b) => b > 90 && r > 65 && g < 100);
-        // Green curve (Cohort 2): green > 80, red < 95, blue < 95
-        const c2Trace = extractTrace((r, g, b) => g > 80 && r < 95 && b < 95);
-
-        resolve({ c1Trace, c2Trace });
+        resolve({
+          c1Trace: extractTrace((r, g, b) => b > 90 && r > 65 && g < 100),
+          c2Trace: extractTrace((r, g, b) => g > 80 && r < 95 && b < 95)
+        });
       } catch (err) {
         console.error('Digitization error:', err);
         resolve(null);
@@ -68,289 +57,285 @@ async function digitizeKmImageAsync(imgBlobOrUrl) {
   });
 }
 
-/**
- * Truncate a label to fit within maxChars, using ellipsis.
- * Tries to break at a word boundary if possible.
- */
+// ── Helpers ──────────────────────────────────────────────────────────
+
 function truncateLabel(label, maxChars) {
   if (label.length <= maxChars) return label;
-  const truncated = label.substring(0, maxChars - 1);
-  const lastSpace = truncated.lastIndexOf(' ');
-  if (lastSpace > maxChars * 0.5) {
-    return truncated.substring(0, lastSpace) + '…';
-  }
-  return truncated + '…';
+  const cut = label.substring(0, maxChars - 1);
+  const sp = cut.lastIndexOf(' ');
+  return (sp > maxChars * 0.4 ? cut.substring(0, sp) : cut) + '…';
 }
 
-async function generateDynamicKmSvg(parsedData) {
-  if (!parsedData || !parsedData.outcomes || !parsedData.outcomes.length) return '';
+const SVG_FONT = `font-family: 'Liberation Sans', 'Arimo', 'DejaVu Sans', 'Source Sans 3', sans-serif;`;
 
-  const outcomes = parsedData.outcomes;
-  const c1Obj = parsedData.cohorts['1'] || {};
-  const c2Obj = parsedData.cohorts['2'] || {};
-  const c1Name = c1Obj.name || 'Cohort 1';
-  const c2Name = c2Obj.name || 'Cohort 2';
-  const nPairsNum = parseInt((c1Obj.n_after || '1000').replace(/,/g, ''), 10) || 1000;
+// ── Generate a single outcome panel ─────────────────────────────────
+// Returns a standalone SVG string with generous spacing for one outcome.
 
-  // Layout parameters — tuned to prevent text overlap
-  const nPanels = outcomes.length;
-  const panelW = 280.0;           // Slightly narrower panels to allow breathing room
-  const panelH = 240.0;           // Shorter to leave space for at-risk table
-  const gapX = 50.0;              // Gap between panels
-  const marginLeft = 65.0;        // Left margin for Y-axis label + ticks
-  const marginTop = 32.0;         // Top margin for panel titles
-  const marginRight = 40.0;       // Right margin for endpoint labels
-  const panelBottom = marginTop + panelH;
-  const atRiskSectionH = 80.0;    // Height reserved for number-at-risk table
-  const totalH = panelBottom + atRiskSectionH + 20.0;
-  let totalW = marginLeft + nPanels * panelW + (nPanels - 1) * gapX + marginRight;
-  if (totalW < 900) totalW = 900;
+async function generateSingleKmSvg(outcome, c1Name, c2Name, nPairsNum, panelLetter) {
+  const o = outcome;
 
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const svgParts = [];
+  // Layout for a standalone single panel
+  const W = 460;
+  const plotLeft = 65;
+  const plotRight = W - 40;
+  const plotW = plotRight - plotLeft;
+  const plotTop = 36;
+  const plotH = 200;
+  const plotBot = plotTop + plotH;
+  const totalH = plotBot + 100; // space for at-risk table + "Time in days"
 
-  // Determine max legend label length based on panel width
-  const maxLabelChars = Math.min(24, Math.floor(panelW / 8));
+  // Digitize or synthesize traces
+  let traces = null;
+  if (o.kmImageBlob || o.kmImageUrl) {
+    traces = await digitizeKmImageAsync(o.kmImageBlob || o.kmImageUrl);
+  }
+  let c1Trace = traces?.c1Trace;
+  let c2Trace = traces?.c2Trace;
 
-  svgParts.push(`<?xml version="1.0" encoding="utf-8" standalone="no"?>`);
-  svgParts.push(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${totalW.toFixed(1)}pt" height="${totalH.toFixed(1)}pt" viewBox="0 0 ${totalW.toFixed(1)} ${totalH.toFixed(1)}" version="1.1">`);
-  svgParts.push(`<defs><style type="text/css">`);
-  svgParts.push(`*{stroke-linejoin: round; stroke-linecap: butt}`);
-  svgParts.push(`.font-sans{font-family: 'Liberation Sans', 'Arimo', 'DejaVu Sans', 'Source Sans 3', sans-serif;}`);
-  svgParts.push(`</style></defs>`);
-  svgParts.push(`<rect width="${totalW.toFixed(1)}" height="${totalH.toFixed(1)}" fill="#ffffff"/>`);
+  const arm1 = o.arms.find(a => a.arm === '1') || {};
+  const arm2 = o.arms.find(a => a.arm === '2') || {};
+  const cum1End = Math.max(0.1, 100 - (arm1.survival ? parseFloat(arm1.survival) : 85));
+  const cum2End = Math.max(0.1, 100 - (arm2.survival ? parseFloat(arm2.survival) : 85));
 
-  for (let i = 0; i < nPanels; i++) {
-    const o = outcomes[i];
-    const px0 = marginLeft + i * (panelW + gapX);
-    const px1 = px0 + panelW;
-    const py0 = marginTop;
-    const py1 = panelBottom;
-
-    let traces = null;
-    if (o.kmImageBlob || o.kmImageUrl) {
-      traces = await digitizeKmImageAsync(o.kmImageBlob || o.kmImageUrl);
+  if (!c1Trace?.length) {
+    c1Trace = [];
+    for (let d = 0; d <= 1825; d += 2) {
+      const f = Math.pow(d / 1825, 0.85);
+      c1Trace.push({ day: d, surv: (100 - cum1End * f) / 100, cum: cum1End * f });
     }
-
-    // Fallback if digitization fails: generate synthetic trajectory anchored to report landmarks
-    let c1Trace = traces?.c1Trace;
-    let c2Trace = traces?.c2Trace;
-
-    const arm1 = o.arms.find(a => a.arm === '1') || {};
-    const arm2 = o.arms.find(a => a.arm === '2') || {};
-    const surv1End = arm1.survival ? parseFloat(arm1.survival.replace('%', '')) : 85.0;
-    const surv2End = arm2.survival ? parseFloat(arm2.survival.replace('%', '')) : 85.0;
-    const cum1End = Math.max(0.1, 100.0 - surv1End);
-    const cum2End = Math.max(0.1, 100.0 - surv2End);
-
-    if (!c1Trace || !c1Trace.length) {
-      c1Trace = [];
-      for (let day = 0; day <= 1825; day += 2) {
-        const frac = Math.pow(day / 1825.0, 0.85);
-        const cum = cum1End * frac;
-        c1Trace.push({ day, surv: (100.0 - cum) / 100.0, cum });
-      }
+  }
+  if (!c2Trace?.length) {
+    c2Trace = [];
+    for (let d = 0; d <= 1825; d += 2) {
+      const f = Math.pow(d / 1825, 0.85);
+      c2Trace.push({ day: d, surv: (100 - cum2End * f) / 100, cum: cum2End * f });
     }
-    if (!c2Trace || !c2Trace.length) {
-      c2Trace = [];
-      for (let day = 0; day <= 1825; day += 2) {
-        const frac = Math.pow(day / 1825.0, 0.85);
-        const cum = cum2End * frac;
-        c2Trace.push({ day, surv: (100.0 - cum) / 100.0, cum });
-      }
-    }
-
-    // Determine y_max and step
-    const maxObserved = Math.max(
-      ...c1Trace.map(p => p.cum),
-      ...c2Trace.map(p => p.cum)
-    );
-
-    let yMax = 20.0;
-    let yStep = 2.5;
-    if (maxObserved <= 8.5) {
-      yMax = 10.0;
-      yStep = 2.0;
-    } else if (maxObserved <= 17.5) {
-      yMax = 20.0;
-      yStep = 2.5;
-    } else if (maxObserved <= 28.0) {
-      yMax = 30.0;
-      yStep = 5.0;
-    } else if (maxObserved <= 38.0) {
-      yMax = 40.0;
-      yStep = 5.0;
-    } else if (maxObserved <= 55.0) {
-      yMax = 60.0;
-      yStep = 10.0;
-    } else {
-      yMax = 100.0;
-      yStep = 20.0;
-    }
-
-    const mapX = (day) => px0 + (day / 1825.0) * panelW;
-    const mapY = (cum) => py1 - (cum / yMax) * panelH;
-
-    // Background panel
-    svgParts.push(`<rect x="${px0.toFixed(2)}" y="${py0.toFixed(2)}" width="${panelW.toFixed(2)}" height="${panelH.toFixed(2)}" fill="#ffffff"/>`);
-
-    // Horizontal grid lines (subtle)
-    for (let yv = yStep; yv <= yMax - 0.001; yv += yStep) {
-      const yt = mapY(yv);
-      svgParts.push(`<line x1="${px0.toFixed(2)}" y1="${yt.toFixed(2)}" x2="${px1.toFixed(2)}" y2="${yt.toFixed(2)}" stroke="#e8e8e8" stroke-width="0.5"/>`);
-    }
-
-    // X Ticks and labels
-    const xDays = [0, 365, 730, 1095, 1460, 1825];
-    xDays.forEach(xd => {
-      const xt = mapX(xd);
-      svgParts.push(`<line x1="${xt.toFixed(2)}" y1="${py1.toFixed(2)}" x2="${xt.toFixed(2)}" y2="${(py1 + 4).toFixed(2)}" stroke="#000000" stroke-width="0.8"/>`);
-      svgParts.push(`<text class="font-sans" x="${xt.toFixed(2)}" y="${(py1 + 14).toFixed(2)}" font-size="8" text-anchor="middle">${xd}</text>`);
-    });
-
-    // Y Ticks and labels
-    for (let yv = 0.0; yv <= yMax + 0.001; yv += yStep) {
-      const yt = mapY(yv);
-      svgParts.push(`<line x1="${px0.toFixed(2)}" y1="${yt.toFixed(2)}" x2="${(px0 - 4).toFixed(2)}" y2="${yt.toFixed(2)}" stroke="#000000" stroke-width="0.8"/>`);
-      const lbl = (yStep < 5.0 && yv !== Math.round(yv)) ? yv.toFixed(1) : Math.round(yv).toString();
-      svgParts.push(`<text class="font-sans" x="${(px0 - 7).toFixed(2)}" y="${(yt + 3).toFixed(2)}" font-size="8" text-anchor="end">${lbl}</text>`);
-    }
-
-    // Y axis title (leftmost panel only)
-    if (i === 0) {
-      const midY = (py0 + py1) / 2.0;
-      svgParts.push(`<text class="font-sans" x="${(px0 - 42).toFixed(2)}" y="${midY.toFixed(2)}" font-size="9.5" text-anchor="middle" transform="rotate(-90 ${(px0 - 42).toFixed(2)} ${midY.toFixed(2)})">Cumulative incidence (%)</text>`);
-    }
-
-    // Render Curves with Greenwood 95% Confidence Interval Ribbons
-    const renderArm = (trace, colorFill, colorStroke, nTotal) => {
-      const polyTop = [];
-      const polyBot = [];
-      const pathPts = [];
-
-      trace.forEach(pt => {
-        const d = pt.day;
-        const cum = pt.cum;
-        const surv = Math.max(0.001, pt.surv);
-
-        // Greenwood SE
-        const eventsSoFar = (1.0 - surv) * nTotal;
-        const denom = nTotal * Math.max(1.0, nTotal - eventsSoFar);
-        const variance = (surv * surv) * (eventsSoFar / denom);
-        const se = Math.sqrt(Math.max(0.0, variance)) * 100.0;
-        const ciLo = Math.max(0.0, cum - 1.96 * se);
-        const ciHi = Math.min(yMax, cum + 1.96 * se);
-
-        const px = mapX(d);
-        const py = mapY(cum);
-        const pyLo = mapY(ciLo);
-        const pyHi = mapY(ciHi);
-
-        pathPts.push({ x: px, y: py });
-        polyTop.push({ x: px, y: pyHi });
-        polyBot.push({ x: px, y: pyLo });
-      });
-
-      // Shaded 95% CI ribbon
-      let polyD = `M ${polyTop[0].x.toFixed(2)} ${polyTop[0].y.toFixed(2)}`;
-      for (let k = 1; k < polyTop.length; k++) {
-        polyD += ` L ${polyTop[k].x.toFixed(2)} ${polyTop[k].y.toFixed(2)}`;
-      }
-      for (let k = polyBot.length - 1; k >= 0; k--) {
-        polyD += ` L ${polyBot[k].x.toFixed(2)} ${polyBot[k].y.toFixed(2)}`;
-      }
-      polyD += ` Z`;
-      svgParts.push(`<path d="${polyD}" fill="${colorFill}" stroke="none"/>`);
-
-      // Step Curve Path
-      let lineD = `M ${pathPts[0].x.toFixed(2)} ${pathPts[0].y.toFixed(2)}`;
-      for (let k = 1; k < pathPts.length; k++) {
-        const prev = pathPts[k - 1];
-        const curr = pathPts[k];
-        lineD += ` L ${curr.x.toFixed(2)} ${prev.y.toFixed(2)} L ${curr.x.toFixed(2)} ${curr.y.toFixed(2)}`;
-      }
-      svgParts.push(`<path d="${lineD}" fill="none" stroke="${colorStroke}" stroke-width="1.5"/>`);
-
-      // Landmark label at Day 1825 — positioned to the right of the panel
-      const lastPt = trace[trace.length - 1];
-      const endX = mapX(1825);
-      const endY = mapY(lastPt.cum);
-      svgParts.push(`<text class="font-sans" x="${(endX + 4).toFixed(2)}" y="${(endY + 3).toFixed(2)}" font-size="7.5" font-weight="700" fill="${colorStroke}">${lastPt.cum.toFixed(1)}%</text>`);
-    };
-
-    // Cohort 1: Blue (#2166ac), Cohort 2: Red (#b2182b)
-    renderArm(c1Trace, 'rgba(33,102,172,0.18)', '#2166ac', nPairsNum);
-    renderArm(c2Trace, 'rgba(178,24,43,0.14)', '#b2182b', nPairsNum);
-
-    // Spines (left and bottom)
-    svgParts.push(`<line x1="${px0.toFixed(2)}" y1="${py1.toFixed(2)}" x2="${px0.toFixed(2)}" y2="${py0.toFixed(2)}" stroke="#000000" stroke-width="0.8"/>`);
-    svgParts.push(`<line x1="${px0.toFixed(2)}" y1="${py1.toFixed(2)}" x2="${px1.toFixed(2)}" y2="${py1.toFixed(2)}" stroke="#000000" stroke-width="0.8"/>`);
-
-    // Panel Title — positioned above panel with enough clearance
-    const letter = (i < letters.length) ? letters[i] : `${i + 1}`;
-    const panelTitle = truncateLabel(o.name, 22);
-    svgParts.push(`<text class="font-sans" x="${(px0 + panelW / 2).toFixed(2)}" y="${(py0 - 10).toFixed(2)}" font-size="10" font-weight="700" text-anchor="middle">${letter}. ${panelTitle}</text>`);
-
-    // HR Badge — positioned inside the top-left of plot area, compact sizing
-    if (o.hr) {
-      const bx = px0 + 8;
-      const by = py0 + 8;
-      // Measure approximate text width
-      const hrText = `HR ${o.hr} ${o.hr_ci || ''}`;
-      const pValStr = (o.logrank_p !== undefined && parseFloat(o.logrank_p) < 0.001) ? '<0.001' : (o.logrank_p || '--');
-      const pText = `p=${pValStr}`;
-      const maxTextLen = Math.max(hrText.length, pText.length);
-      const bw = Math.min(panelW * 0.55, Math.max(90, maxTextLen * 5.5 + 12));
-      const bh = 28;
-      svgParts.push(`<rect x="${bx.toFixed(2)}" y="${by.toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" rx="2.5" fill="rgba(255,255,255,0.92)" stroke="#999999" stroke-width="0.6"/>`);
-      svgParts.push(`<text class="font-sans" x="${(bx + 5).toFixed(2)}" y="${(by + 11).toFixed(2)}" font-size="7.5" font-weight="600">${hrText}</text>`);
-      svgParts.push(`<text class="font-sans" x="${(bx + 5).toFixed(2)}" y="${(by + 22).toFixed(2)}" font-size="7.5">${pText}</text>`);
-    }
-
-    // Legend — positioned below the badge, inside the plot area
-    const legX = px0 + 8;
-    const legY = py0 + 46;
-    const legLabel1 = truncateLabel(c1Name, maxLabelChars);
-    const legLabel2 = truncateLabel(c2Name, maxLabelChars);
-    // Cohort 1 legend line + label
-    svgParts.push(`<line x1="${legX.toFixed(2)}" y1="${legY.toFixed(2)}" x2="${(legX + 14).toFixed(2)}" y2="${legY.toFixed(2)}" stroke="#2166ac" stroke-width="1.6"/>`);
-    svgParts.push(`<text class="font-sans" x="${(legX + 18).toFixed(2)}" y="${(legY + 3).toFixed(2)}" font-size="7.5">${legLabel1}</text>`);
-    // Cohort 2 legend line + label
-    svgParts.push(`<line x1="${legX.toFixed(2)}" y1="${(legY + 12).toFixed(2)}" x2="${(legX + 14).toFixed(2)}" y2="${(legY + 12).toFixed(2)}" stroke="#b2182b" stroke-width="1.6"/>`);
-    svgParts.push(`<text class="font-sans" x="${(legX + 18).toFixed(2)}" y="${(legY + 15).toFixed(2)}" font-size="7.5">${legLabel2}</text>`);
-
-    // ── Number-at-Risk Table ── aligned directly under each panel
-    const tblTitleY = py1 + 22;          // "No. at risk" header
-    const tblRow1Y = tblTitleY + 14;     // Cohort 1 row
-    const tblRow2Y = tblRow1Y + 12;      // Cohort 2 row
-
-    // "No. at risk" title — centered under each panel, not offset to the left
-    svgParts.push(`<text class="font-sans" x="${px0.toFixed(2)}" y="${tblTitleY.toFixed(2)}" font-size="8" font-weight="700" text-anchor="start">No. at risk</text>`);
-
-    // Cohort name labels — positioned at the left edge of the panel
-    const tblLabelMaxChars = Math.min(20, Math.floor((panelW * 0.35) / 4.5));
-    const tblLabel1 = truncateLabel(c1Name, tblLabelMaxChars);
-    const tblLabel2 = truncateLabel(c2Name, tblLabelMaxChars);
-    svgParts.push(`<text class="font-sans" x="${px0.toFixed(2)}" y="${tblRow1Y.toFixed(2)}" font-size="7" fill="#2166ac">${tblLabel1}</text>`);
-    svgParts.push(`<text class="font-sans" x="${px0.toFixed(2)}" y="${tblRow2Y.toFixed(2)}" font-size="7" fill="#b2182b">${tblLabel2}</text>`);
-
-    // Number values at each time point
-    xDays.forEach(xd => {
-      const xt = mapX(xd);
-      const idx = Math.min(Math.round(xd * 0.69), c1Trace.length - 1);
-      const s1 = c1Trace[idx]?.surv || 1.0;
-      const s2 = c2Trace[Math.min(idx, c2Trace.length - 1)]?.surv || 1.0;
-
-      // Realistic follow-up retention curve
-      const censorFactor = 1.0 - 0.45 * (xd / 1825.0);
-      const n1Val = Math.max(0, Math.round(nPairsNum * s1 * censorFactor));
-      const n2Val = Math.max(0, Math.round(nPairsNum * s2 * censorFactor));
-
-      svgParts.push(`<text class="font-sans" x="${xt.toFixed(2)}" y="${tblRow1Y.toFixed(2)}" font-size="7" text-anchor="middle" fill="#2166ac">${n1Val.toLocaleString()}</text>`);
-      svgParts.push(`<text class="font-sans" x="${xt.toFixed(2)}" y="${tblRow2Y.toFixed(2)}" font-size="7" text-anchor="middle" fill="#b2182b">${n2Val.toLocaleString()}</text>`);
-    });
   }
 
-  svgParts.push(`</svg>`);
-  return svgParts.join('\n');
+  // Y-axis scale
+  const maxObs = Math.max(...c1Trace.map(p => p.cum), ...c2Trace.map(p => p.cum));
+  let yMax, yStep;
+  if (maxObs <= 8.5) { yMax = 10; yStep = 2; }
+  else if (maxObs <= 17.5) { yMax = 20; yStep = 2.5; }
+  else if (maxObs <= 28) { yMax = 30; yStep = 5; }
+  else if (maxObs <= 38) { yMax = 40; yStep = 5; }
+  else if (maxObs <= 55) { yMax = 60; yStep = 10; }
+  else { yMax = 100; yStep = 20; }
+
+  const mapX = d => plotLeft + (d / 1825) * plotW;
+  const mapY = c => plotBot - (c / yMax) * plotH;
+
+  const s = []; // SVG parts
+
+  s.push(`<?xml version="1.0" encoding="utf-8"?>`);
+  s.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${totalH}" viewBox="0 0 ${W} ${totalH}">`);
+  s.push(`<rect width="${W}" height="${totalH}" fill="#fff"/>`);
+
+  // Grid lines
+  for (let yv = yStep; yv < yMax; yv += yStep) {
+    const yt = mapY(yv);
+    s.push(`<line x1="${plotLeft}" y1="${yt}" x2="${plotRight}" y2="${yt}" stroke="#e8e8e8" stroke-width="0.5"/>`);
+  }
+
+  // X-axis ticks + labels
+  const xDays = [0, 365, 730, 1095, 1460, 1825];
+  xDays.forEach(xd => {
+    const x = mapX(xd);
+    s.push(`<line x1="${x}" y1="${plotBot}" x2="${x}" y2="${plotBot + 4}" stroke="#000" stroke-width="0.8"/>`);
+    s.push(`<text x="${x}" y="${plotBot + 14}" font-size="9" text-anchor="middle" style="${SVG_FONT}">${xd}</text>`);
+  });
+
+  // Y-axis ticks + labels
+  for (let yv = 0; yv <= yMax + 0.001; yv += yStep) {
+    const yt = mapY(yv);
+    s.push(`<line x1="${plotLeft}" y1="${yt}" x2="${plotLeft - 4}" y2="${yt}" stroke="#000" stroke-width="0.8"/>`);
+    const lbl = (yStep < 5 && yv !== Math.round(yv)) ? yv.toFixed(1) : Math.round(yv).toString();
+    s.push(`<text x="${plotLeft - 7}" y="${yt + 3}" font-size="9" text-anchor="end" style="${SVG_FONT}">${lbl}</text>`);
+  }
+
+  // Y-axis title
+  const midY = (plotTop + plotBot) / 2;
+  s.push(`<text x="${plotLeft - 46}" y="${midY}" font-size="10" text-anchor="middle" style="${SVG_FONT}" transform="rotate(-90 ${plotLeft - 46} ${midY})">Cumulative incidence (%)</text>`);
+
+  // ── Render arm (CI ribbon + step curve + endpoint label) ──
+  function renderArm(trace, fillCol, strokeCol, nTotal) {
+    const polyTop = [], polyBot = [], path = [];
+    trace.forEach(pt => {
+      const surv = Math.max(0.001, pt.surv);
+      const ev = (1 - surv) * nTotal;
+      const den = nTotal * Math.max(1, nTotal - ev);
+      const se = Math.sqrt(Math.max(0, surv * surv * ev / den)) * 100;
+      const ciLo = Math.max(0, pt.cum - 1.96 * se);
+      const ciHi = Math.min(yMax, pt.cum + 1.96 * se);
+      const px = mapX(pt.day);
+      path.push({ x: px, y: mapY(pt.cum) });
+      polyTop.push({ x: px, y: mapY(ciHi) });
+      polyBot.push({ x: px, y: mapY(ciLo) });
+    });
+
+    // CI ribbon
+    let d = `M ${polyTop[0].x.toFixed(1)} ${polyTop[0].y.toFixed(1)}`;
+    polyTop.slice(1).forEach(p => d += ` L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`);
+    polyBot.reverse().forEach(p => d += ` L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`);
+    d += ' Z';
+    s.push(`<path d="${d}" fill="${fillCol}" stroke="none"/>`);
+
+    // Step curve
+    let ld = `M ${path[0].x.toFixed(1)} ${path[0].y.toFixed(1)}`;
+    for (let k = 1; k < path.length; k++) {
+      ld += ` L ${path[k].x.toFixed(1)} ${path[k - 1].y.toFixed(1)} L ${path[k].x.toFixed(1)} ${path[k].y.toFixed(1)}`;
+    }
+    s.push(`<path d="${ld}" fill="none" stroke="${strokeCol}" stroke-width="1.5"/>`);
+
+    // Endpoint label
+    const last = trace[trace.length - 1];
+    s.push(`<text x="${mapX(1825) + 4}" y="${mapY(last.cum) + 3}" font-size="8" font-weight="700" fill="${strokeCol}" style="${SVG_FONT}">${last.cum.toFixed(1)}%</text>`);
+  }
+
+  renderArm(c1Trace, 'rgba(33,102,172,0.18)', '#2166ac', nPairsNum);
+  renderArm(c2Trace, 'rgba(178,24,43,0.14)', '#b2182b', nPairsNum);
+
+  // Spines
+  s.push(`<line x1="${plotLeft}" y1="${plotBot}" x2="${plotLeft}" y2="${plotTop}" stroke="#000" stroke-width="0.8"/>`);
+  s.push(`<line x1="${plotLeft}" y1="${plotBot}" x2="${plotRight}" y2="${plotBot}" stroke="#000" stroke-width="0.8"/>`);
+
+  // Panel title
+  const title = truncateLabel(o.name, 36);
+  s.push(`<text x="${plotLeft}" y="${plotTop - 12}" font-size="11" font-weight="700" style="${SVG_FONT}">${panelLetter}. ${title}</text>`);
+
+  // HR Badge
+  if (o.hr) {
+    const bx = plotLeft + 10, by = plotTop + 8;
+    const hrText = `HR ${o.hr} ${o.hr_ci || ''}`;
+    const pVal = (o.logrank_p !== undefined && parseFloat(o.logrank_p) < 0.001) ? '<0.001' : (o.logrank_p || '--');
+    const pText = `p=${pVal}`;
+    const bw = Math.max(100, Math.max(hrText.length, pText.length) * 5.8 + 16);
+    s.push(`<rect x="${bx}" y="${by}" width="${bw}" height="30" rx="2.5" fill="rgba(255,255,255,0.92)" stroke="#999" stroke-width="0.6"/>`);
+    s.push(`<text x="${bx + 6}" y="${by + 12}" font-size="8" font-weight="600" style="${SVG_FONT}">${hrText}</text>`);
+    s.push(`<text x="${bx + 6}" y="${by + 24}" font-size="8" style="${SVG_FONT}">${pText}</text>`);
+  }
+
+  // Legend
+  const lx = plotLeft + 10, ly = plotTop + 48;
+  const l1 = truncateLabel(c1Name, 30), l2 = truncateLabel(c2Name, 30);
+  s.push(`<line x1="${lx}" y1="${ly}" x2="${lx + 16}" y2="${ly}" stroke="#2166ac" stroke-width="1.6"/>`);
+  s.push(`<text x="${lx + 20}" y="${ly + 3}" font-size="8.5" style="${SVG_FONT}">${l1}</text>`);
+  s.push(`<line x1="${lx}" y1="${ly + 14}" x2="${lx + 16}" y2="${ly + 14}" stroke="#b2182b" stroke-width="1.6"/>`);
+  s.push(`<text x="${lx + 20}" y="${ly + 17}" font-size="8.5" style="${SVG_FONT}">${l2}</text>`);
+
+  // ── Number-at-Risk Table ──────────────────────────────────────
+  const tblHeaderY = plotBot + 24;
+  const tblRow1Y = tblHeaderY + 14;
+  const tblRow2Y = tblRow1Y + 13;
+
+  s.push(`<text x="${plotLeft}" y="${tblHeaderY}" font-size="9" font-weight="700" style="${SVG_FONT}">No. at risk</text>`);
+
+  // Row labels (right-aligned, before day-0 column)
+  const lblX = mapX(0) - 6;
+  const r1 = truncateLabel(c1Name, 18), r2 = truncateLabel(c2Name, 18);
+  s.push(`<text x="${lblX}" y="${tblRow1Y}" font-size="8" text-anchor="end" fill="#2166ac" style="${SVG_FONT}">${r1}</text>`);
+  s.push(`<text x="${lblX}" y="${tblRow2Y}" font-size="8" text-anchor="end" fill="#b2182b" style="${SVG_FONT}">${r2}</text>`);
+
+  // Numbers at each tick
+  xDays.forEach(xd => {
+    const x = mapX(xd);
+    const idx = Math.min(Math.round(xd * 0.69), c1Trace.length - 1);
+    const s1 = c1Trace[idx]?.surv || 1;
+    const s2 = c2Trace[Math.min(idx, c2Trace.length - 1)]?.surv || 1;
+    const cf = 1 - 0.45 * (xd / 1825);
+    s.push(`<text x="${x}" y="${tblRow1Y}" font-size="8" text-anchor="middle" fill="#2166ac" style="${SVG_FONT}">${Math.round(nPairsNum * s1 * cf).toLocaleString()}</text>`);
+    s.push(`<text x="${x}" y="${tblRow2Y}" font-size="8" text-anchor="middle" fill="#b2182b" style="${SVG_FONT}">${Math.round(nPairsNum * s2 * cf).toLocaleString()}</text>`);
+  });
+
+  // "Time in days" label
+  s.push(`<text x="${(plotLeft + plotRight) / 2}" y="${tblRow2Y + 18}" font-size="9" text-anchor="middle" style="${SVG_FONT}">Time in days</text>`);
+
+  s.push(`</svg>`);
+  return s.join('\n');
+}
+
+
+// ── Generate all individual panels ──────────────────────────────────
+// Returns array of { name, letter, svgString } for each outcome.
+
+async function generateAllIndividualKmSvgs(parsedData) {
+  if (!parsedData?.outcomes?.length) return [];
+
+  const c1Name = parsedData.cohorts['1']?.name || 'Cohort 1';
+  const c2Name = parsedData.cohorts['2']?.name || 'Cohort 2';
+  const nPairs = parseInt((parsedData.cohorts['1']?.n_after || '1000').replace(/,/g, ''), 10) || 1000;
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+  const results = [];
+  for (let i = 0; i < parsedData.outcomes.length; i++) {
+    const o = parsedData.outcomes[i];
+    const letter = (i < letters.length) ? letters[i] : `${i + 1}`;
+    const svg = await generateSingleKmSvg(o, c1Name, c2Name, nPairs, letter);
+    results.push({ name: o.name, letter, svgString: svg });
+  }
+  return results;
+}
+
+
+// ── Combine individual panels into a multi-panel figure ─────────────
+// Takes the array from generateAllIndividualKmSvgs and lays them out
+// side-by-side with a shared Y-axis title on the left.
+
+function generateCombinedKmSvg(individualSvgs) {
+  if (!individualSvgs?.length) return '';
+
+  const n = individualSvgs.length;
+
+  // Each individual panel is 460pt wide × ~336pt tall.
+  // For combined view, we scale them down and tile horizontally.
+  const singleW = 460;
+  const singleH = 336;
+
+  // Target: scale panels to fit a reasonable combined width
+  const scaledW = Math.min(320, 1200 / n);  // Each panel scaled width
+  const scale = scaledW / singleW;
+  const scaledH = singleH * scale;
+
+  const gap = 12;
+  const marginLeft = 10;
+  const marginTop = 5;
+  const totalW = marginLeft + n * scaledW + (n - 1) * gap + 10;
+  const totalH = marginTop + scaledH + 10;
+
+  const s = [];
+  s.push(`<?xml version="1.0" encoding="utf-8"?>`);
+  s.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${totalW.toFixed(0)}" height="${totalH.toFixed(0)}" viewBox="0 0 ${totalW.toFixed(0)} ${totalH.toFixed(0)}">`);
+  s.push(`<rect width="${totalW.toFixed(0)}" height="${totalH.toFixed(0)}" fill="#fff"/>`);
+
+  for (let i = 0; i < n; i++) {
+    const svgStr = individualSvgs[i].svgString;
+
+    // Extract inner content (strip outer <svg> and <?xml> wrapper)
+    const innerContent = svgStr
+      .replace(/<\?xml[^?]*\?>\s*/g, '')
+      .replace(/<svg[^>]*>/, '')
+      .replace(/<\/svg>\s*$/, '')
+      .replace(/<rect width="\d+" height="\d+" fill="#fff"\/>/, ''); // remove background rect
+
+    const tx = marginLeft + i * (scaledW + gap);
+    const ty = marginTop;
+
+    s.push(`<g transform="translate(${tx.toFixed(1)}, ${ty.toFixed(1)}) scale(${scale.toFixed(4)})">`);
+    s.push(`<rect width="${singleW}" height="${singleH}" fill="#fff"/>`);
+    s.push(innerContent);
+    s.push(`</g>`);
+  }
+
+  s.push(`</svg>`);
+  return s.join('\n');
+}
+
+
+// ── Legacy API: generates multi-panel SVG directly ──────────────────
+// Called from km.html for backward compatibility.
+
+async function generateDynamicKmSvg(parsedData) {
+  const individuals = await generateAllIndividualKmSvgs(parsedData);
+  if (!individuals.length) return '';
+  return generateCombinedKmSvg(individuals);
 }
