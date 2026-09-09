@@ -6,6 +6,7 @@
 <title>TriNetX Outcome Bar Charts</title>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="tiff-export.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
@@ -705,7 +706,10 @@ function renderCharts(){
 
     const box=document.createElement('div'); box.className='chartbox';
     box.innerHTML=`<h3>${name}</h3><div class="canvaswrap"><canvas></canvas></div>
-      <button class="btn ghost dl">Download PNG</button>`;
+      <div style="display:flex;gap:10px;margin-top:10px;">
+        <button class="btn ghost dl">Download PNG (300 DPI)</button>
+        <button class="btn ghost dl-tiff">Download TIFF (300 DPI)</button>
+      </div>`;
     host.appendChild(box);
     const canvas=box.querySelector('canvas');
 
@@ -763,6 +767,22 @@ function renderCharts(){
       tctx.drawImage(canvas,0,0);
       a.href=tmp.toDataURL('image/png');
       a.click();
+    });
+
+    box.querySelector('.dl-tiff').addEventListener('click', ()=>{
+      const scale=3.5;
+      const tmp=document.createElement('canvas');
+      tmp.width=canvas.width*scale; tmp.height=canvas.height*scale;
+      const tctx=tmp.getContext('2d');
+      tctx.fillStyle='#fff'; tctx.fillRect(0,0,tmp.width,tmp.height);
+      tctx.scale(scale,scale);
+      tctx.drawImage(canvas,0,0);
+      const fn = name.replace(/[^a-z0-9]+/gi,'_').toLowerCase()+'_barchart.tiff';
+      if(window.downloadTiff) {
+        window.downloadTiff(tmp, fn, 300);
+      } else {
+        alert('TIFF exporter module not loaded.');
+      }
     });
   });
 }

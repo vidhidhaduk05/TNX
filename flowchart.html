@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="tiff-export.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -138,6 +139,7 @@
       <button class="btn ghost" id="lay-edit" onclick="setLayout('editorial')">Editorial schematic</button>
       <button class="btn" onclick="exportSvg()">SVG</button>
       <button class="btn" onclick="exportPng()">PNG</button>
+      <button class="btn" onclick="exportTiff()">TIFF</button>
       <button class="btn accent" onclick="exportHtml()">Standalone HTML</button>
     </div>
     <div class="figurewrap" id="figurewrap"></div>
@@ -1378,6 +1380,26 @@ if (typeof window !== 'undefined') (function () {
       cx.scale(2, 2);
       cx.drawImage(img, 0, 0, w, h);
       cv.toBlob(function (b) { if (b) download(b, baseName() + '.png'); }, 'image/png');
+    };
+    img.src = URL.createObjectURL(new Blob([s], { type: 'image/svg+xml' }));
+  };
+  window.exportTiff = async function () {
+    var s = await serializedSvg();
+    if (!s) return;
+    var svgEl = document.querySelector('#figurewrap svg');
+    var w = svgEl.viewBox.baseVal.width, h = svgEl.viewBox.baseVal.height;
+    var img = new Image();
+    img.onload = function () {
+      var cv = document.createElement('canvas');
+      cv.width = w * 2; cv.height = h * 2;
+      var cx = cv.getContext('2d');
+      cx.scale(2, 2);
+      cx.drawImage(img, 0, 0, w, h);
+      if (window.downloadTiff) {
+        window.downloadTiff(cv, baseName() + '.tiff', 300);
+      } else {
+        alert('TIFF exporter module not loaded.');
+      }
     };
     img.src = URL.createObjectURL(new Blob([s], { type: 'image/svg+xml' }));
   };

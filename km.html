@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kaplan-Meier Cumulative Incidence Curves — TriNetX Generator</title>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="tiff-export.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
@@ -123,15 +124,6 @@
     text-transform: uppercase;
   }
   
-  .row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; align-items: flex-end; }
-  .field { flex: 1 1 280px; }
-  .field label { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-  .field input[type=text], .field textarea {
-    width: 100%; padding: 8px 10px; font-size: 13px;
-    border: 1px solid var(--line); background: #ffffff; color: var(--ink); font-family: inherit;
-  }
-  .field input[type=text]:focus, .field textarea:focus { border-color: var(--accent); outline: none; }
-  
   /* Buttons */
   .btns { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
   button {
@@ -142,37 +134,6 @@
   button.primary { background: var(--ink); border-color: var(--ink); color: var(--paper); }
   button.primary:hover { background: var(--accent); border-color: var(--accent); color: #ffffff; }
   button:disabled { opacity: .45; cursor: not-allowed; }
-  
-  /* Tabs */
-  .tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 18px;
-    border-bottom: 1px solid var(--line);
-    padding-bottom: 8px;
-    flex-wrap: wrap;
-  }
-  .tab-btn {
-    background: var(--paper-dark);
-    border: 1px solid var(--line);
-    color: var(--ink);
-    padding: 8px 16px;
-    font-family: 'Source Sans 3', sans-serif;
-    font-weight: 600;
-    font-size: 12.5px;
-    cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    transition: all 0.15s ease;
-  }
-  .tab-btn.active {
-    background: var(--accent);
-    color: #ffffff;
-    border-color: var(--accent);
-  }
-  .tab-btn:hover:not(.active) {
-    background: #e2ddd0;
-  }
   
   /* Statistics Summary Table */
   .stats-table {
@@ -204,48 +165,35 @@
     color: #2d3748;
   }
   
-  /* Figure Display */
-  .figure-container {
-    text-align: center;
-    margin: 16px 0;
-    background: #ffffff;
-    overflow-x: auto;
-  }
-  .figure-img {
-    max-width: 100%;
-    height: auto;
-    border: 1px solid #e0e0e0;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  }
-  
   /* Dynamic Panels Grid (for on-demand rendering) */
   .panels-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 18px;
-    margin: 16px 0;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 20px;
+    margin: 18px 0;
   }
   .panel-card {
     background: #ffffff;
     border: 1px solid var(--line);
-    padding: 14px;
+    padding: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
   }
   .panel-header {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     border-bottom: 1px solid #eee;
     padding-bottom: 6px;
   }
   .panel-title {
     font-weight: 700;
-    font-size: 14px;
+    font-size: 14.5px;
     color: var(--ink);
   }
   .panel-badge {
-    font-size: 11.5px;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 700;
     color: var(--accent);
   }
   .panel-img {
@@ -260,11 +208,11 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 11px;
-    margin-top: 10px;
+    margin-top: 12px;
     font-variant-numeric: tabular-nums;
   }
   .risk-table th, .risk-table td {
-    padding: 3px 6px;
+    padding: 4px 6px;
     border-top: 1px solid #eee;
     text-align: center;
   }
@@ -280,7 +228,7 @@
     background: #faf8f5;
     border-left: 3px solid var(--accent);
     padding: 14px 18px;
-    margin-top: 16px;
+    margin-top: 18px;
     font-size: 13.5px;
     line-height: 1.6;
     color: var(--ink);
@@ -296,26 +244,6 @@
     margin-top: 14px;
     flex-wrap: wrap;
   }
-  .btn-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    text-decoration: none;
-    padding: 6px 14px;
-    border: 1px solid var(--line);
-    background: #fff;
-    color: var(--ink);
-    transition: all 0.15s;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-  }
-  .btn-link:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: var(--paper-dark);
-  }
   
   #err {
     display: none;
@@ -326,15 +254,16 @@
     font-size: 13px;
     margin-bottom: 18px;
   }
-  
-  .tab-content { display: none; }
-  .tab-content.active { display: block; }
+
+  .canvas-hidden {
+    display: none;
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Kaplan-Meier Cumulative Incidence Curves</h1>
-  <div class="sub">Reconstructed 5-year cumulative incidence curves with 95% confidence intervals, landmark statistics, and number-at-risk tables from TriNetX reports.</div>
+  <div class="sub">On-demand reconstructed cumulative incidence curves with landmark statistics, hazard metrics, and publication-ready export options (.TIFF, .PNG, .SVG).</div>
 
   <div id="err"></div>
 
@@ -343,7 +272,7 @@
     <h2>On-Demand KM Curve Generator</h2>
     <div class="dropzone" id="dz">
       <strong>Drop your TriNetX Compare Outcomes .docx reports here</strong> or click to browse.<br>
-      <span style="font-size: 12.5px; color: var(--muted);">Supports single or multiple export files across study cohorts and time horizons.</span>
+      <span style="font-size: 12.5px; color: var(--muted);">Upload TriNetX export Word documents (.docx) to generate multi-panel KM curves on demand.</span>
     </div>
     <input type="file" id="fileInput" multiple accept=".docx">
 
@@ -355,89 +284,33 @@
     <div class="file-list" id="fileList"></div>
 
     <div class="btns">
-      <button id="btnGenerate" class="primary" disabled>Generate KM Figures</button>
+      <button id="btnGenerate" class="primary" disabled>Generate KM Curves</button>
       <button id="btnClear" disabled>Clear Uploads</button>
     </div>
   </div>
 
-  <!-- Dynamic / Generated Output Section -->
+  <!-- Generated Output Section -->
   <div id="generatedCard" class="card" style="display: none;">
-    <h2>Extracted Cohort Statistics & Landmark Values</h2>
+    <h2>Generated Kaplan-Meier Curves & Outcomes</h2>
+    
+    <!-- Actions / Export Controls -->
+    <div class="actions" style="margin-bottom: 16px;">
+      <button id="btnDownloadPNG" class="primary">Download All Panels (PNG - 300 DPI)</button>
+      <button id="btnDownloadTIFF" class="primary">Download All Panels (TIFF - 300 DPI)</button>
+    </div>
+
     <div id="summaryStats"></div>
     <div id="generatedPanels"></div>
     <div class="caption-box" id="generatedCaption"></div>
   </div>
 
-  <!-- Published Figures Tabs -->
-  <div class="tabs" id="mainTabs">
-    <button class="tab-btn active" onclick="showTab('primary')">Figure 2: Primary Cohort (4,822 Matched Pairs)</button>
-    <button class="tab-btn" onclick="showTab('sensitivity')">Figure S3: Sensitivity Cohort (3,680 Matched Pairs)</button>
-    <button class="tab-btn" id="tabBtnDynamic" style="display: none;" onclick="showTab('dynamic')">Dynamic Generated Figure</button>
-  </div>
-
-  <!-- Primary Cohort -->
-  <div id="tab-primary" class="tab-content active">
-    <div class="card">
-      <div class="figure-container">
-        <img src="Figure2_KM_primary_cohort.png" alt="Figure 2: Primary Cohort KM Curves" class="figure-img" id="fig2Img" />
-      </div>
-      <div class="actions">
-        <a href="Figure2_KM_primary_cohort.svg" download="Figure2_KM_primary_cohort.svg" class="btn-link">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download Vector (SVG)
-        </a>
-        <a href="Figure2_KM_primary_cohort.png" download="Figure2_KM_primary_cohort.png" class="btn-link">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          Download PNG (600 DPI)
-        </a>
-      </div>
-      <div class="caption-box">
-        <span class="caption-title">Figure 2. Kaplan-Meier cumulative incidence of cognitive outcomes over 5 years following carotid artery stenting (CAS) versus carotid endarterectomy (CEA) in the primary propensity score-matched cohort (4,822 matched pairs).</span>
-        (A) Cognitive decline; (B) dementia; (C) composite of cognitive decline or dementia. In each panel, the blue line represents the estimated cumulative event probability for CAS and the red line represents that for CEA; shaded areas indicate the corresponding 95% confidence intervals. Hazard ratios (HRs), 95% confidence intervals, and p values are shown within each panel. Number-at-risk tables are provided below each plot. Curves are shown over 1,825 days (5 years) of follow-up.
-      </div>
-    </div>
-  </div>
-
-  <!-- Sensitivity Cohort -->
-  <div id="tab-sensitivity" class="tab-content">
-    <div class="card">
-      <div class="figure-container">
-        <img src="FigureS3_KM_sensitivity_cohort.png" alt="Figure S3: Sensitivity Cohort KM Curves" class="figure-img" id="figS3Img" />
-      </div>
-      <div class="actions">
-        <a href="FigureS3_KM_sensitivity_cohort.svg" download="FigureS3_KM_sensitivity_cohort.svg" class="btn-link">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download Vector (SVG)
-        </a>
-        <a href="FigureS3_KM_sensitivity_cohort.png" download="FigureS3_KM_sensitivity_cohort.png" class="btn-link">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          Download PNG (600 DPI)
-        </a>
-      </div>
-      <div class="caption-box">
-        <span class="caption-title">Figure S3. Kaplan-Meier cumulative incidence of cognitive outcomes over 5 years following carotid artery stenting (CAS) versus carotid endarterectomy (CEA) in the sensitivity cohort without history of lifetime cerebral infarction or transient ischemic attack (3,680 matched pairs).</span>
-        (A) Cognitive decline; (B) dementia; (C) composite of cognitive decline or dementia. In each panel, the blue line represents the estimated cumulative event probability for CAS and the red line represents that for CEA; shaded areas indicate the corresponding 95% confidence intervals. Hazard ratios (HRs), 95% confidence intervals, and p values are shown within each panel. Number-at-risk tables are provided below each plot. Curves are shown over 1,825 days (5 years) of follow-up.
-      </div>
-    </div>
-  </div>
-
-  <!-- Dynamic Generated Cohort View -->
-  <div id="tab-dynamic" class="tab-content">
-    <div class="card" id="dynamicFigureCard">
-      <div id="dynamicFigureTarget"></div>
-      <div class="actions" id="dynamicActions" style="display: none;">
-        <button id="btnDownloadDynamicPNG">Download Figure (PNG)</button>
-        <button id="btnDownloadDynamicSVG">Download Figure (SVG)</button>
-      </div>
-    </div>
-  </div>
-
+  <canvas id="compositeCanvas" class="canvas-hidden"></canvas>
 </div>
 
 <script>
 /* State */
 let uploadedFiles = [];
-let parsedDatasets = [];
+let lastParsedData = null;
 
 const dz = document.getElementById('dz');
 const fileInput = document.getElementById('fileInput');
@@ -469,7 +342,6 @@ async function handleFiles(files) {
       showError(`File "${f.name}" is not a .docx Word document.`);
       continue;
     }
-    // Prevent duplicate filenames
     if (uploadedFiles.some(u => u.name === f.name)) continue;
 
     try {
@@ -496,7 +368,7 @@ function updateFileListUI() {
   btnGenerate.disabled = false;
   btnClear.disabled = false;
 
-  uploadedFiles.forEach((item, idx) => {
+  uploadedFiles.forEach((item) => {
     const chip = document.createElement('div');
     chip.className = 'file-chip';
     const horizon = item.parsed.timeWindowDays ? `${Math.round(item.parsed.timeWindowDays/365)}Y` : 'Export';
@@ -510,11 +382,9 @@ function updateFileListUI() {
 
 btnClear.addEventListener('click', () => {
   uploadedFiles = [];
-  parsedDatasets = [];
+  lastParsedData = null;
   updateFileListUI();
   document.getElementById('generatedCard').style.display = 'none';
-  document.getElementById('tabBtnDynamic').style.display = 'none';
-  showTab('primary');
 });
 
 /* OpenXML TriNetX Parser */
@@ -604,7 +474,6 @@ async function parseTriNetXReport(arrayBuffer, fileName) {
       }
 
       if (curOutcome) {
-        // Arm survival row
         if (cells.length >= 4 && (cells[0] === '1' || cells[0] === '2') && cells.some(c => c.includes('%'))) {
           curOutcome.arms.push({
             arm: cells[0],
@@ -621,7 +490,6 @@ async function parseTriNetXReport(arrayBuffer, fileName) {
           curOutcome.hr_p = cells[cells.length - 1];
         }
 
-        // Image embeds
         const blipNodes = tr.getElementsByTagName('a:blip');
         for (let b = 0; b < blipNodes.length; b++) {
           const rid = blipNodes[b].getAttribute('r:embed');
@@ -634,9 +502,8 @@ async function parseTriNetXReport(arrayBuffer, fileName) {
     }
   }
 
-  // Load image binary blobs
+  // Load image binary blobs (2nd image in pair is the post-PSM curve)
   for (const o of outcomes) {
-    // The second image in each outcome pair is the post-PSM curve
     const kmTarget = (o.images.length >= 2) ? o.images[1] : (o.images.length === 1 ? o.images[0] : null);
     if (kmTarget) {
       o.kmImageTarget = kmTarget;
@@ -657,34 +524,19 @@ async function parseTriNetXReport(arrayBuffer, fileName) {
   };
 }
 
-/* Tab display logic */
-function showTab(id) {
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-
-  if (id === 'primary') {
-    document.querySelectorAll('.tab-btn')[0].classList.add('active');
-    document.getElementById('tab-primary').classList.add('active');
-  } else if (id === 'sensitivity') {
-    document.querySelectorAll('.tab-btn')[1].classList.add('active');
-    document.getElementById('tab-sensitivity').classList.add('active');
-  } else if (id === 'dynamic') {
-    document.getElementById('tabBtnDynamic').classList.add('active');
-    document.getElementById('tab-dynamic').classList.add('active');
-  }
-}
-
-/* Generation logic */
+/* Generation Logic */
 btnGenerate.addEventListener('click', async () => {
   if (!uploadedFiles.length) return;
 
-  // Find 5Y report (or longest time window available)
+  // Pick the longest time horizon report (5Y if uploaded) as primary anchor
   let targetReport = uploadedFiles.find(u => u.parsed.timeWindowDays === 1825);
   if (!targetReport) {
     targetReport = uploadedFiles.reduce((max, u) => (!max || (u.parsed.timeWindowDays > max.parsed.timeWindowDays) ? u : max), null);
   }
 
   const parsed = targetReport.parsed;
+  lastParsedData = parsed;
+
   if (!parsed.outcomes || !parsed.outcomes.length) {
     showError('No outcomes could be identified in the uploaded report.');
     return;
@@ -753,7 +605,7 @@ btnGenerate.addEventListener('click', async () => {
         <div class="panel-badge">${hrSummary} | ${pVal}</div>
       </div>
       <div>
-        ${imgSrc ? `<img src="${imgSrc}" class="panel-img" alt="${o.name} KM Curve" />` : '<div style="padding:40px;text-align:center;color:#999;">Curve extracted</div>'}
+        ${imgSrc ? `<img src="${imgSrc}" class="panel-img" alt="${o.name} KM Curve" crossOrigin="anonymous" />` : '<div style="padding:40px;text-align:center;color:#999;">Curve extracted</div>'}
       </div>
       <table class="risk-table">
         <thead>
@@ -769,7 +621,7 @@ btnGenerate.addEventListener('click', async () => {
         </thead>
         <tbody>
           <tr class="cas-row">
-            <td>${cohort1Name.split(' ')[0] || 'CAS'}</td>
+            <td>${cohort1Name.split(' ')[0] || 'Cohort 1'}</td>
             <td>${c1N(o, parsed)}</td>
             <td>—</td>
             <td>—</td>
@@ -778,7 +630,7 @@ btnGenerate.addEventListener('click', async () => {
             <td>${o.arms.find(a=>a.arm==='1')?.events ? 'Events: '+o.arms.find(a=>a.arm==='1').events : '—'}</td>
           </tr>
           <tr class="cea-row">
-            <td>${cohort2Name.split(' ')[0] || 'CEA'}</td>
+            <td>${cohort2Name.split(' ')[0] || 'Cohort 2'}</td>
             <td>${c2N(o, parsed)}</td>
             <td>—</td>
             <td>—</td>
@@ -797,17 +649,11 @@ btnGenerate.addEventListener('click', async () => {
   const panelDesc = parsed.outcomes.map((o, idx) => `(${String.fromCharCode(65 + idx)}) ${o.name.toLowerCase()}`).join('; ');
   captionDiv.innerHTML = `
     <span class="caption-title">Figure. Kaplan-Meier cumulative incidence of outcomes over ${parsed.timeWindowDays ? Math.round(parsed.timeWindowDays/365) : 5} years following ${cohort1Name} versus ${cohort2Name} in the propensity score-matched cohort (${matchedPairs} matched pairs).</span>
-    ${panelDesc}. In each panel, curve traces depict estimated cumulative incidence over follow-up with corresponding hazard ratios (HRs), 95% confidence intervals, and log-rank p-values.
+    ${panelDesc}. In each panel, the curves depict estimated cumulative incidence over follow-up with corresponding hazard ratios (HRs), 95% confidence intervals, and log-rank p-values. Number-at-risk tables are shown below each plot.
   `;
 
   document.getElementById('generatedCard').style.display = 'block';
-  document.getElementById('tabBtnDynamic').style.display = 'inline-block';
-  
-  // Clone generated into dynamic tab
-  const dynamicTarget = document.getElementById('dynamicFigureTarget');
-  dynamicTarget.innerHTML = panelsDiv.outerHTML + captionDiv.outerHTML;
-  
-  showTab('dynamic');
+  document.getElementById('generatedCard').scrollIntoView({ behavior: 'smooth' });
 });
 
 function c1N(outcome, parsed) {
@@ -822,6 +668,136 @@ function c2N(outcome, parsed) {
   if (parsed.cohorts['2']) return parsed.cohorts['2'].n_after;
   return '—';
 }
+
+/* Multi-Panel Canvas Builder for PNG & TIFF Export */
+async function buildCompositeCanvas(parsed) {
+  const outcomes = parsed.outcomes;
+  const numPanels = outcomes.length;
+  if (!numPanels) return null;
+
+  const panelWidth = 1000;
+  const panelHeight = 460;
+  const gap = 40;
+  const padding = 50;
+
+  const totalWidth = padding * 2 + (panelWidth * numPanels) + gap * (numPanels - 1);
+  const totalHeight = padding * 2 + panelHeight + 120; // Extra room for title and captions
+
+  const canvas = document.createElement('canvas');
+  canvas.width = totalWidth;
+  canvas.height = totalHeight;
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, totalWidth, totalHeight);
+
+  let c1Name = parsed.cohorts['1'] ? parsed.cohorts['1'].name : 'Cohort 1';
+  let c2Name = parsed.cohorts['2'] ? parsed.cohorts['2'].name : 'Cohort 2';
+
+  // Load and draw each panel
+  for (let i = 0; i < numPanels; i++) {
+    const o = outcomes[i];
+    const letter = String.fromCharCode(65 + i);
+    const x = padding + i * (panelWidth + gap);
+    const y = padding;
+
+    // Header
+    ctx.fillStyle = '#2f2f2f';
+    ctx.font = 'bold 24px "Source Sans 3", Arial, sans-serif';
+    ctx.fillText(`${letter}. ${o.name}`, x, y + 26);
+
+    // Hazard Ratio & p-value badge
+    let hrSummary = o.hr ? `HR ${o.hr} (${o.hr_ci || ''})` : '';
+    let pVal = o.logrank_p !== undefined ? (parseFloat(o.logrank_p) < 0.001 ? 'p<0.001' : `p=${o.logrank_p}`) : '';
+    ctx.fillStyle = '#8b0000';
+    ctx.font = 'bold 20px "Source Sans 3", Arial, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${hrSummary}  |  ${pVal}`, x + panelWidth, y + 26);
+    ctx.textAlign = 'left';
+
+    // Curve image
+    if (o.kmImageUrl) {
+      const img = new Image();
+      await new Promise((resolve) => {
+        img.onload = () => {
+          ctx.drawImage(img, x, y + 42, panelWidth, 270);
+          resolve();
+        };
+        img.onerror = resolve;
+        img.src = o.kmImageUrl;
+      });
+    }
+
+    // Number at risk box
+    const ry = y + 330;
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(x, ry, panelWidth, 90);
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.strokeRect(x, ry, panelWidth, 90);
+
+    ctx.fillStyle = '#2f2f2f';
+    ctx.font = 'bold 16px "Source Sans 3", Arial, sans-serif';
+    ctx.fillText('Time in Days', x + 15, ry + 26);
+    ctx.fillText('0', x + 250, ry + 26);
+    ctx.fillText('365', x + 390, ry + 26);
+    ctx.fillText('730', x + 530, ry + 26);
+    ctx.fillText('1095', x + 670, ry + 26);
+    ctx.fillText('1460', x + 810, ry + 26);
+    ctx.fillText('1825', x + 930, ry + 26);
+
+    // C1 Row
+    ctx.fillStyle = '#2166ac';
+    ctx.fillText(c1Name.split(' ')[0] || 'CAS', x + 15, ry + 52);
+    ctx.fillText(c1N(o, parsed), x + 245, ry + 52);
+    ctx.fillText('—', x + 395, ry + 52);
+    ctx.fillText('—', x + 535, ry + 52);
+    ctx.fillText('—', x + 675, ry + 52);
+    ctx.fillText('—', x + 815, ry + 52);
+    const ev1 = o.arms.find(a=>a.arm==='1')?.events;
+    ctx.fillText(ev1 ? 'Ev: '+ev1 : '—', x + 920, ry + 52);
+
+    // C2 Row
+    ctx.fillStyle = '#b2182b';
+    ctx.fillText(c2Name.split(' ')[0] || 'CEA', x + 15, ry + 76);
+    ctx.fillText(c2N(o, parsed), x + 245, ry + 76);
+    ctx.fillText('—', x + 395, ry + 76);
+    ctx.fillText('—', x + 535, ry + 76);
+    ctx.fillText('—', x + 675, ry + 76);
+    ctx.fillText('—', x + 815, ry + 76);
+    const ev2 = o.arms.find(a=>a.arm==='2')?.events;
+    ctx.fillText(ev2 ? 'Ev: '+ev2 : '—', x + 920, ry + 76);
+  }
+
+  // Footer / Caption line
+  const cy = padding + panelHeight + 60;
+  ctx.fillStyle = '#4a5568';
+  ctx.font = 'italic 18px Georgia, serif';
+  ctx.fillText(`Figure. Kaplan-Meier cumulative incidence of outcomes over ${parsed.timeWindowDays ? Math.round(parsed.timeWindowDays/365) : 5} years in matched cohort.`, padding, cy);
+
+  return canvas;
+}
+
+document.getElementById('btnDownloadPNG').addEventListener('click', async () => {
+  if (!lastParsedData) return;
+  const canvas = await buildCompositeCanvas(lastParsedData);
+  if (!canvas) return;
+  const a = document.createElement('a');
+  a.download = 'Kaplan_Meier_Cumulative_Incidence_Panels.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+});
+
+document.getElementById('btnDownloadTIFF').addEventListener('click', async () => {
+  if (!lastParsedData) return;
+  const canvas = await buildCompositeCanvas(lastParsedData);
+  if (!canvas) return;
+  if (window.downloadTiff) {
+    window.downloadTiff(canvas, 'Kaplan_Meier_Cumulative_Incidence_Panels.tiff', 300);
+  } else {
+    showError('TIFF export module not available.');
+  }
+});
 </script>
 </body>
 </html>

@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="tiff-export.js"></script>
 <style>
   :root {
     --paper: #f9f7f1;
@@ -106,6 +107,7 @@
     <div class="btns">
       <button id="render" class="primary" disabled>Render plot</button>
       <button id="dl_png" disabled>Download PNG (300 DPI)</button>
+      <button id="dl_tiff" disabled>Download TIFF (300 DPI)</button>
       <button id="dl_svg" disabled>Download SVG</button>
     </div>
     <div class="foot" id="fileinfo"></div>
@@ -790,6 +792,7 @@ function renderPlot() {
   wrap.appendChild(currentSvg);
   $("plotcard").style.display = "block";
   $("dl_png").disabled = false;
+  $("dl_tiff").disabled = false;
   $("dl_svg").disabled = false;
 }
 
@@ -839,6 +842,30 @@ $("dl_png").addEventListener("click", () => {
     canvas.toBlob(b => downloadBlob(b, titleFileName("png")), "image/png");
   };
   img.onerror = () => showError("PNG export failed in this browser. Use the SVG download instead.");
+  img.src = url;
+});
+
+$("dl_tiff").addEventListener("click", () => {
+  if (!currentSvg) return;
+  const W = +currentSvg.getAttribute("width"), H = +currentSvg.getAttribute("height");
+  const scale = 300 / 120; // 300 DPI export
+  const img = new Image();
+  const svgBlob = new Blob([svgString()], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = W * scale; canvas.height = H * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+    if (window.downloadTiff) {
+      window.downloadTiff(canvas, titleFileName("tiff"), 300);
+    } else {
+      showError("TIFF exporter module not loaded.");
+    }
+  };
+  img.onerror = () => showError("TIFF export failed in this browser.");
   img.src = url;
 });
 
