@@ -68,6 +68,20 @@ async function digitizeKmImageAsync(imgBlobOrUrl) {
   });
 }
 
+/**
+ * Truncate a label to fit within maxChars, using ellipsis.
+ * Tries to break at a word boundary if possible.
+ */
+function truncateLabel(label, maxChars) {
+  if (label.length <= maxChars) return label;
+  const truncated = label.substring(0, maxChars - 1);
+  const lastSpace = truncated.lastIndexOf(' ');
+  if (lastSpace > maxChars * 0.5) {
+    return truncated.substring(0, lastSpace) + '…';
+  }
+  return truncated + '…';
+}
+
 async function generateDynamicKmSvg(parsedData) {
   if (!parsedData || !parsedData.outcomes || !parsedData.outcomes.length) return '';
 
@@ -78,20 +92,25 @@ async function generateDynamicKmSvg(parsedData) {
   const c2Name = c2Obj.name || 'Cohort 2';
   const nPairsNum = parseInt((c1Obj.n_after || '1000').replace(/,/g, ''), 10) || 1000;
 
-  // Layout parameters
+  // Layout parameters — tuned to prevent text overlap
   const nPanels = outcomes.length;
-  const panelW = 303.6558;
-  const panelH = 275.055;
-  const gapX = 66.8;
-  const marginLeft = 61.8;
-  const marginTop = 27.65;
-  const panelBottom = marginTop + panelH; // 302.7
-  const totalH = 460.8;
-  let totalW = marginLeft + nPanels * panelW + (nPanels - 1) * gapX + 35.0;
-  if (totalW < 1123.2) totalW = 1123.2;
+  const panelW = 280.0;           // Slightly narrower panels to allow breathing room
+  const panelH = 240.0;           // Shorter to leave space for at-risk table
+  const gapX = 50.0;              // Gap between panels
+  const marginLeft = 65.0;        // Left margin for Y-axis label + ticks
+  const marginTop = 32.0;         // Top margin for panel titles
+  const marginRight = 40.0;       // Right margin for endpoint labels
+  const panelBottom = marginTop + panelH;
+  const atRiskSectionH = 80.0;    // Height reserved for number-at-risk table
+  const totalH = panelBottom + atRiskSectionH + 20.0;
+  let totalW = marginLeft + nPanels * panelW + (nPanels - 1) * gapX + marginRight;
+  if (totalW < 900) totalW = 900;
 
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const svgParts = [];
+
+  // Determine max legend label length based on panel width
+  const maxLabelChars = Math.min(24, Math.floor(panelW / 8));
 
   svgParts.push(`<?xml version="1.0" encoding="utf-8" standalone="no"?>`);
   svgParts.push(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${totalW.toFixed(1)}pt" height="${totalH.toFixed(1)}pt" viewBox="0 0 ${totalW.toFixed(1)} ${totalH.toFixed(1)}" version="1.1">`);
@@ -175,26 +194,32 @@ async function generateDynamicKmSvg(parsedData) {
     // Background panel
     svgParts.push(`<rect x="${px0.toFixed(2)}" y="${py0.toFixed(2)}" width="${panelW.toFixed(2)}" height="${panelH.toFixed(2)}" fill="#ffffff"/>`);
 
-    // X Ticks
+    // Horizontal grid lines (subtle)
+    for (let yv = yStep; yv <= yMax - 0.001; yv += yStep) {
+      const yt = mapY(yv);
+      svgParts.push(`<line x1="${px0.toFixed(2)}" y1="${yt.toFixed(2)}" x2="${px1.toFixed(2)}" y2="${yt.toFixed(2)}" stroke="#e8e8e8" stroke-width="0.5"/>`);
+    }
+
+    // X Ticks and labels
     const xDays = [0, 365, 730, 1095, 1460, 1825];
     xDays.forEach(xd => {
       const xt = mapX(xd);
-      svgParts.push(`<line x1="${xt.toFixed(2)}" y1="${py1.toFixed(2)}" x2="${xt.toFixed(2)}" y2="${(py1 + 3.5).toFixed(2)}" stroke="#000000" stroke-width="0.8"/>`);
-      svgParts.push(`<text class="font-sans" x="${xt.toFixed(2)}" y="${(py1 + 13.5).toFixed(2)}" font-size="9" text-anchor="middle">${xd}</text>`);
+      svgParts.push(`<line x1="${xt.toFixed(2)}" y1="${py1.toFixed(2)}" x2="${xt.toFixed(2)}" y2="${(py1 + 4).toFixed(2)}" stroke="#000000" stroke-width="0.8"/>`);
+      svgParts.push(`<text class="font-sans" x="${xt.toFixed(2)}" y="${(py1 + 14).toFixed(2)}" font-size="8" text-anchor="middle">${xd}</text>`);
     });
 
-    // Y Ticks
+    // Y Ticks and labels
     for (let yv = 0.0; yv <= yMax + 0.001; yv += yStep) {
       const yt = mapY(yv);
-      svgParts.push(`<line x1="${px0.toFixed(2)}" y1="${yt.toFixed(2)}" x2="${(px0 - 3.5).toFixed(2)}" y2="${yt.toFixed(2)}" stroke="#000000" stroke-width="0.8"/>`);
+      svgParts.push(`<line x1="${px0.toFixed(2)}" y1="${yt.toFixed(2)}" x2="${(px0 - 4).toFixed(2)}" y2="${yt.toFixed(2)}" stroke="#000000" stroke-width="0.8"/>`);
       const lbl = (yStep < 5.0 && yv !== Math.round(yv)) ? yv.toFixed(1) : Math.round(yv).toString();
-      svgParts.push(`<text class="font-sans" x="${(px0 - 7.0).toFixed(2)}" y="${(yt + 3.2).toFixed(2)}" font-size="9" text-anchor="end">${lbl}</text>`);
+      svgParts.push(`<text class="font-sans" x="${(px0 - 7).toFixed(2)}" y="${(yt + 3).toFixed(2)}" font-size="8" text-anchor="end">${lbl}</text>`);
     }
 
-    // Y axis title (leftmost panel)
+    // Y axis title (leftmost panel only)
     if (i === 0) {
       const midY = (py0 + py1) / 2.0;
-      svgParts.push(`<text class="font-sans" x="${(px0 - 30.0).toFixed(2)}" y="${midY.toFixed(2)}" font-size="10" text-anchor="middle" transform="rotate(-90 ${(px0 - 30.0).toFixed(2)} ${midY.toFixed(2)})">Cumulative incidence (%)</text>`);
+      svgParts.push(`<text class="font-sans" x="${(px0 - 42).toFixed(2)}" y="${midY.toFixed(2)}" font-size="9.5" text-anchor="middle" transform="rotate(-90 ${(px0 - 42).toFixed(2)} ${midY.toFixed(2)})">Cumulative incidence (%)</text>`);
     }
 
     // Render Curves with Greenwood 95% Confidence Interval Ribbons
@@ -244,55 +269,72 @@ async function generateDynamicKmSvg(parsedData) {
         const curr = pathPts[k];
         lineD += ` L ${curr.x.toFixed(2)} ${prev.y.toFixed(2)} L ${curr.x.toFixed(2)} ${curr.y.toFixed(2)}`;
       }
-      svgParts.push(`<path d="${lineD}" fill="none" stroke="${colorStroke}" stroke-width="1.6"/>`);
+      svgParts.push(`<path d="${lineD}" fill="none" stroke="${colorStroke}" stroke-width="1.5"/>`);
 
-      // Landmark label at Day 1825
+      // Landmark label at Day 1825 — positioned to the right of the panel
       const lastPt = trace[trace.length - 1];
       const endX = mapX(1825);
       const endY = mapY(lastPt.cum);
-      svgParts.push(`<text class="font-sans" x="${(endX + 5.0).toFixed(2)}" y="${(endY + 3.0).toFixed(2)}" font-size="8.5" font-weight="700" fill="${colorStroke}">${lastPt.cum.toFixed(1)}%</text>`);
+      svgParts.push(`<text class="font-sans" x="${(endX + 4).toFixed(2)}" y="${(endY + 3).toFixed(2)}" font-size="7.5" font-weight="700" fill="${colorStroke}">${lastPt.cum.toFixed(1)}%</text>`);
     };
 
     // Cohort 1: Blue (#2166ac), Cohort 2: Red (#b2182b)
-    renderArm(c1Trace, 'rgba(33,102,172,0.22)', '#2166ac', nPairsNum);
-    renderArm(c2Trace, 'rgba(178,24,43,0.18)', '#b2182b', nPairsNum);
+    renderArm(c1Trace, 'rgba(33,102,172,0.18)', '#2166ac', nPairsNum);
+    renderArm(c2Trace, 'rgba(178,24,43,0.14)', '#b2182b', nPairsNum);
 
-    // Spines
+    // Spines (left and bottom)
     svgParts.push(`<line x1="${px0.toFixed(2)}" y1="${py1.toFixed(2)}" x2="${px0.toFixed(2)}" y2="${py0.toFixed(2)}" stroke="#000000" stroke-width="0.8"/>`);
     svgParts.push(`<line x1="${px0.toFixed(2)}" y1="${py1.toFixed(2)}" x2="${px1.toFixed(2)}" y2="${py1.toFixed(2)}" stroke="#000000" stroke-width="0.8"/>`);
 
-    // Panel Title
+    // Panel Title — positioned above panel with enough clearance
     const letter = (i < letters.length) ? letters[i] : `${i + 1}`;
-    svgParts.push(`<text class="font-sans" x="${(px0 + 2.0).toFixed(2)}" y="${(py0 - 8.0).toFixed(2)}" font-size="11" font-weight="700">${letter}. ${o.name}</text>`);
+    const panelTitle = truncateLabel(o.name, 22);
+    svgParts.push(`<text class="font-sans" x="${(px0 + panelW / 2).toFixed(2)}" y="${(py0 - 10).toFixed(2)}" font-size="10" font-weight="700" text-anchor="middle">${letter}. ${panelTitle}</text>`);
 
-    // Badge (HR, 95% CI, p-value)
+    // HR Badge — positioned inside the top-left of plot area, compact sizing
     if (o.hr) {
-      const bx = px0 + 12.0;
-      const by = py0 + 12.0;
-      const bw = 120.0;
-      const bh = 32.0;
+      const bx = px0 + 8;
+      const by = py0 + 8;
+      // Measure approximate text width
+      const hrText = `HR ${o.hr} ${o.hr_ci || ''}`;
       const pValStr = (o.logrank_p !== undefined && parseFloat(o.logrank_p) < 0.001) ? '<0.001' : (o.logrank_p || '--');
-      svgParts.push(`<rect x="${bx.toFixed(2)}" y="${by.toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" rx="3" fill="#ffffff" stroke="#888888" stroke-width="0.7"/>`);
-      svgParts.push(`<text class="font-sans" x="${(bx + 6.0).toFixed(2)}" y="${(by + 13.0).toFixed(2)}" font-size="8.5">HR ${o.hr} ${o.hr_ci || ''}</text>`);
-      svgParts.push(`<text class="font-sans" x="${(bx + 6.0).toFixed(2)}" y="${(by + 25.0).toFixed(2)}" font-size="8.5">p=${pValStr}</text>`);
+      const pText = `p=${pValStr}`;
+      const maxTextLen = Math.max(hrText.length, pText.length);
+      const bw = Math.min(panelW * 0.55, Math.max(90, maxTextLen * 5.5 + 12));
+      const bh = 28;
+      svgParts.push(`<rect x="${bx.toFixed(2)}" y="${by.toFixed(2)}" width="${bw.toFixed(2)}" height="${bh.toFixed(2)}" rx="2.5" fill="rgba(255,255,255,0.92)" stroke="#999999" stroke-width="0.6"/>`);
+      svgParts.push(`<text class="font-sans" x="${(bx + 5).toFixed(2)}" y="${(by + 11).toFixed(2)}" font-size="7.5" font-weight="600">${hrText}</text>`);
+      svgParts.push(`<text class="font-sans" x="${(bx + 5).toFixed(2)}" y="${(by + 22).toFixed(2)}" font-size="7.5">${pText}</text>`);
     }
 
-    // Legend
-    const legX = px0 + 20.0;
-    const legY = py0 + 60.0;
-    const legLabel1 = c1Name.length > 28 ? c1Name.substring(0, 26) + '…' : c1Name;
-    const legLabel2 = c2Name.length > 28 ? c2Name.substring(0, 26) + '…' : c2Name;
-    svgParts.push(`<line x1="${legX.toFixed(2)}" y1="${legY.toFixed(2)}" x2="${(legX + 16.0).toFixed(2)}" y2="${legY.toFixed(2)}" stroke="#2166ac" stroke-width="1.8"/>`);
-    svgParts.push(`<text class="font-sans" x="${(legX + 22.0).toFixed(2)}" y="${(legY + 3.0).toFixed(2)}" font-size="8.5">${legLabel1}</text>`);
-    svgParts.push(`<line x1="${legX.toFixed(2)}" y1="${(legY + 14.0).toFixed(2)}" x2="${(legX + 16.0).toFixed(2)}" y2="${(legY + 14.0).toFixed(2)}" stroke="#b2182b" stroke-width="1.8"/>`);
-    svgParts.push(`<text class="font-sans" x="${(legX + 22.0).toFixed(2)}" y="${(legY + 17.0).toFixed(2)}" font-size="8.5">${legLabel2}</text>`);
+    // Legend — positioned below the badge, inside the plot area
+    const legX = px0 + 8;
+    const legY = py0 + 46;
+    const legLabel1 = truncateLabel(c1Name, maxLabelChars);
+    const legLabel2 = truncateLabel(c2Name, maxLabelChars);
+    // Cohort 1 legend line + label
+    svgParts.push(`<line x1="${legX.toFixed(2)}" y1="${legY.toFixed(2)}" x2="${(legX + 14).toFixed(2)}" y2="${legY.toFixed(2)}" stroke="#2166ac" stroke-width="1.6"/>`);
+    svgParts.push(`<text class="font-sans" x="${(legX + 18).toFixed(2)}" y="${(legY + 3).toFixed(2)}" font-size="7.5">${legLabel1}</text>`);
+    // Cohort 2 legend line + label
+    svgParts.push(`<line x1="${legX.toFixed(2)}" y1="${(legY + 12).toFixed(2)}" x2="${(legX + 14).toFixed(2)}" y2="${(legY + 12).toFixed(2)}" stroke="#b2182b" stroke-width="1.6"/>`);
+    svgParts.push(`<text class="font-sans" x="${(legX + 18).toFixed(2)}" y="${(legY + 15).toFixed(2)}" font-size="7.5">${legLabel2}</text>`);
 
-    // Number-at-Risk Table aligned under panel
-    const tblY = py1 + 42.0;
-    svgParts.push(`<text class="font-sans" x="${(px0 - 40.0).toFixed(2)}" y="${tblY.toFixed(2)}" font-size="9" font-weight="700">No. at risk</text>`);
-    svgParts.push(`<text class="font-sans" x="${(px0 - 40.0).toFixed(2)}" y="${(tblY + 24.0).toFixed(2)}" font-size="8.5" fill="#2166ac">${legLabel1}</text>`);
-    svgParts.push(`<text class="font-sans" x="${(px0 - 40.0).toFixed(2)}" y="${(tblY + 48.0).toFixed(2)}" font-size="8.5" fill="#b2182b">${legLabel2}</text>`);
+    // ── Number-at-Risk Table ── aligned directly under each panel
+    const tblTitleY = py1 + 22;          // "No. at risk" header
+    const tblRow1Y = tblTitleY + 14;     // Cohort 1 row
+    const tblRow2Y = tblRow1Y + 12;      // Cohort 2 row
 
+    // "No. at risk" title — centered under each panel, not offset to the left
+    svgParts.push(`<text class="font-sans" x="${px0.toFixed(2)}" y="${tblTitleY.toFixed(2)}" font-size="8" font-weight="700" text-anchor="start">No. at risk</text>`);
+
+    // Cohort name labels — positioned at the left edge of the panel
+    const tblLabelMaxChars = Math.min(20, Math.floor((panelW * 0.35) / 4.5));
+    const tblLabel1 = truncateLabel(c1Name, tblLabelMaxChars);
+    const tblLabel2 = truncateLabel(c2Name, tblLabelMaxChars);
+    svgParts.push(`<text class="font-sans" x="${px0.toFixed(2)}" y="${tblRow1Y.toFixed(2)}" font-size="7" fill="#2166ac">${tblLabel1}</text>`);
+    svgParts.push(`<text class="font-sans" x="${px0.toFixed(2)}" y="${tblRow2Y.toFixed(2)}" font-size="7" fill="#b2182b">${tblLabel2}</text>`);
+
+    // Number values at each time point
     xDays.forEach(xd => {
       const xt = mapX(xd);
       const idx = Math.min(Math.round(xd * 0.69), c1Trace.length - 1);
@@ -304,8 +346,8 @@ async function generateDynamicKmSvg(parsedData) {
       const n1Val = Math.max(0, Math.round(nPairsNum * s1 * censorFactor));
       const n2Val = Math.max(0, Math.round(nPairsNum * s2 * censorFactor));
 
-      svgParts.push(`<text class="font-sans" x="${xt.toFixed(2)}" y="${(tblY + 24.0).toFixed(2)}" font-size="8.5" text-anchor="middle" fill="#2166ac">${n1Val.toLocaleString()}</text>`);
-      svgParts.push(`<text class="font-sans" x="${xt.toFixed(2)}" y="${(tblY + 48.0).toFixed(2)}" font-size="8.5" text-anchor="middle" fill="#b2182b">${n2Val.toLocaleString()}</text>`);
+      svgParts.push(`<text class="font-sans" x="${xt.toFixed(2)}" y="${tblRow1Y.toFixed(2)}" font-size="7" text-anchor="middle" fill="#2166ac">${n1Val.toLocaleString()}</text>`);
+      svgParts.push(`<text class="font-sans" x="${xt.toFixed(2)}" y="${tblRow2Y.toFixed(2)}" font-size="7" text-anchor="middle" fill="#b2182b">${n2Val.toLocaleString()}</text>`);
     });
   }
 
