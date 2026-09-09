@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kaplan-Meier Cumulative Incidence Curves</title>
+<title>Kaplan-Meier Cumulative Incidence Curves — TriNetX Generator</title>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
@@ -17,6 +18,8 @@
     --rule: #2f2f2f;
     --accent: #8b0000;
     --accent-dark: #660000;
+    --cas-blue: #2166ac;
+    --cea-red: #b2182b;
   }
   * { box-sizing: border-box; }
   body {
@@ -25,7 +28,7 @@
     color: var(--ink);
     background: var(--paper);
   }
-  .wrap { max-width: 1140px; margin: 0 auto; padding: 28px 20px 60px; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 60px; }
   h1 { 
     font-family: 'Newsreader', Georgia, serif; 
     font-size: 24px; 
@@ -43,12 +46,111 @@
     margin-top: 6px; 
     margin-bottom: 22px; 
   }
+  .card {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    padding: 20px 24px;
+    margin-bottom: 22px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  }
+  .card h2 {
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--ink);
+    margin: 0 0 12px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 5px;
+  }
+  
+  /* Upload / Dropzone */
+  .dropzone {
+    border: 2px dashed var(--rule);
+    padding: 26px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    cursor: pointer;
+    background: #fdfcf9;
+    transition: border-color .15s, background .15s;
+    line-height: 1.6;
+  }
+  .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: var(--paper-dark); }
+  .dropzone strong { color: var(--ink); }
+  input[type=file] { display: none !important; }
+  
+  /* Disclaimer banner */
+  .disclaimer-box {
+    background: #fff8eb;
+    border: 1px solid #ffd591;
+    border-left: 4px solid #fa8c16;
+    padding: 12px 16px;
+    margin-top: 14px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #873800;
+  }
+  .disclaimer-box strong {
+    color: #5c2200;
+  }
+  
+  /* Uploaded files chips */
+  .file-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .file-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--paper-dark);
+    border: 1px solid var(--line);
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .file-chip .badge {
+    background: var(--accent);
+    color: #ffffff;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 2px;
+    text-transform: uppercase;
+  }
+  
+  .row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; align-items: flex-end; }
+  .field { flex: 1 1 280px; }
+  .field label { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .field input[type=text], .field textarea {
+    width: 100%; padding: 8px 10px; font-size: 13px;
+    border: 1px solid var(--line); background: #ffffff; color: var(--ink); font-family: inherit;
+  }
+  .field input[type=text]:focus, .field textarea:focus { border-color: var(--accent); outline: none; }
+  
+  /* Buttons */
+  .btns { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+  button {
+    font-family: 'Source Sans 3', sans-serif; font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 16px; border-radius: 0; cursor: pointer;
+    border: 1px solid var(--rule); background: #ffffff; color: var(--ink); transition: all .15s;
+  }
+  button:hover { background: var(--paper-dark); color: var(--accent); }
+  button.primary { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  button.primary:hover { background: var(--accent); border-color: var(--accent); color: #ffffff; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  
+  /* Tabs */
   .tabs {
     display: flex;
     gap: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 18px;
     border-bottom: 1px solid var(--line);
     padding-bottom: 8px;
+    flex-wrap: wrap;
   }
   .tab-btn {
     background: var(--paper-dark);
@@ -57,7 +159,7 @@
     padding: 8px 16px;
     font-family: 'Source Sans 3', sans-serif;
     font-weight: 600;
-    font-size: 13px;
+    font-size: 12.5px;
     cursor: pointer;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -71,29 +173,114 @@
   .tab-btn:hover:not(.active) {
     background: #e2ddd0;
   }
-  .card {
-    background: #ffffff;
-    border: 1px solid var(--line);
-    padding: 24px;
-    margin-bottom: 24px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  
+  /* Statistics Summary Table */
+  .stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    margin-top: 10px;
   }
+  .stats-table th, .stats-table td {
+    border: 1px solid var(--line);
+    padding: 6px 10px;
+    text-align: left;
+  }
+  .stats-table th {
+    background: var(--paper-dark);
+    font-weight: 600;
+  }
+  .stats-table td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .badge-stat {
+    display: inline-block;
+    padding: 2px 6px;
+    font-weight: 700;
+    font-size: 11px;
+    background: #edf2f7;
+    border: 1px solid #cbd5e0;
+    color: #2d3748;
+  }
+  
+  /* Figure Display */
   .figure-container {
     text-align: center;
-    margin-bottom: 18px;
+    margin: 16px 0;
     background: #ffffff;
+    overflow-x: auto;
   }
   .figure-img {
     max-width: 100%;
     height: auto;
-    border: 1px solid #eee;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   }
+  
+  /* Dynamic Panels Grid (for on-demand rendering) */
+  .panels-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 18px;
+    margin: 16px 0;
+  }
+  .panel-card {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    padding: 14px;
+  }
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 6px;
+  }
+  .panel-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .panel-badge {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .panel-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: 1px solid #eee;
+    background: #ffffff;
+  }
+  
+  .risk-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin-top: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  .risk-table th, .risk-table td {
+    padding: 3px 6px;
+    border-top: 1px solid #eee;
+    text-align: center;
+  }
+  .risk-table th:first-child, .risk-table td:first-child {
+    text-align: left;
+    font-weight: 600;
+  }
+  .risk-table tr.cas-row td { color: var(--cas-blue); }
+  .risk-table tr.cea-row td { color: var(--cea-red); }
+  
+  /* Captions */
   .caption-box {
     background: #faf8f5;
     border-left: 3px solid var(--accent);
     padding: 14px 18px;
-    margin-top: 14px;
+    margin-top: 16px;
     font-size: 13.5px;
     line-height: 1.6;
     color: var(--ink);
@@ -102,10 +289,12 @@
     font-weight: 700;
     color: var(--accent-dark);
   }
+  
   .actions {
     display: flex;
-    gap: 12px;
-    margin-top: 12px;
+    gap: 10px;
+    margin-top: 14px;
+    flex-wrap: wrap;
   }
   .btn-link {
     display: inline-flex;
@@ -114,48 +303,92 @@
     font-size: 12px;
     font-weight: 600;
     text-decoration: none;
-    padding: 6px 12px;
+    padding: 6px 14px;
     border: 1px solid var(--line);
     background: #fff;
     color: var(--ink);
     transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: .04em;
   }
   .btn-link:hover {
     border-color: var(--accent);
     color: var(--accent);
+    background: var(--paper-dark);
   }
-  .tab-content {
+  
+  #err {
     display: none;
+    background: #fdecea;
+    border: 1px solid #f5c6c0;
+    color: var(--accent);
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 18px;
   }
-  .tab-content.active {
-    display: block;
-  }
+  
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Kaplan-Meier Cumulative Incidence Curves</h1>
-  <div class="sub">Reconstructed 5-year cumulative incidence curves with 95% confidence intervals and number-at-risk tables.</div>
+  <div class="sub">Reconstructed 5-year cumulative incidence curves with 95% confidence intervals, landmark statistics, and number-at-risk tables from TriNetX reports.</div>
 
-  <div class="tabs">
+  <div id="err"></div>
+
+  <!-- Upload Card -->
+  <div class="card">
+    <h2>On-Demand KM Curve Generator</h2>
+    <div class="dropzone" id="dz">
+      <strong>Drop your TriNetX Compare Outcomes .docx reports here</strong> or click to browse.<br>
+      <span style="font-size: 12.5px; color: var(--muted);">Supports single or multiple export files across study cohorts and time horizons.</span>
+    </div>
+    <input type="file" id="fileInput" multiple accept=".docx">
+
+    <!-- Uploading Disclaimer -->
+    <div class="disclaimer-box">
+      <strong>⚠️ Requirement Notice:</strong> For KM curves, <strong>all period files (1-Year, 3-Year, and 5-Year reports) are required</strong> to accurately anchor the survival trajectory, compute landmark cumulative incidences, calibrate hazard proportionality, and reconstruct the validated Number-at-Risk timeline.
+    </div>
+
+    <div class="file-list" id="fileList"></div>
+
+    <div class="btns">
+      <button id="btnGenerate" class="primary" disabled>Generate KM Figures</button>
+      <button id="btnClear" disabled>Clear Uploads</button>
+    </div>
+  </div>
+
+  <!-- Dynamic / Generated Output Section -->
+  <div id="generatedCard" class="card" style="display: none;">
+    <h2>Extracted Cohort Statistics & Landmark Values</h2>
+    <div id="summaryStats"></div>
+    <div id="generatedPanels"></div>
+    <div class="caption-box" id="generatedCaption"></div>
+  </div>
+
+  <!-- Published Figures Tabs -->
+  <div class="tabs" id="mainTabs">
     <button class="tab-btn active" onclick="showTab('primary')">Figure 2: Primary Cohort (4,822 Matched Pairs)</button>
     <button class="tab-btn" onclick="showTab('sensitivity')">Figure S3: Sensitivity Cohort (3,680 Matched Pairs)</button>
+    <button class="tab-btn" id="tabBtnDynamic" style="display: none;" onclick="showTab('dynamic')">Dynamic Generated Figure</button>
   </div>
 
   <!-- Primary Cohort -->
   <div id="tab-primary" class="tab-content active">
     <div class="card">
       <div class="figure-container">
-        <img src="Figure2_KM_primary_cohort.png" alt="Figure 2: Primary Cohort KM Curves" class="figure-img" />
+        <img src="Figure2_KM_primary_cohort.png" alt="Figure 2: Primary Cohort KM Curves" class="figure-img" id="fig2Img" />
       </div>
       <div class="actions">
-        <a href="Figure2_KM_primary_cohort.svg" target="_blank" class="btn-link">
+        <a href="Figure2_KM_primary_cohort.svg" download="Figure2_KM_primary_cohort.svg" class="btn-link">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Open Vector (SVG)
+          Download Vector (SVG)
         </a>
-        <a href="Figure2_KM_primary_cohort.png" target="_blank" class="btn-link">
+        <a href="Figure2_KM_primary_cohort.png" download="Figure2_KM_primary_cohort.png" class="btn-link">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          View Full Size PNG
+          Download PNG (600 DPI)
         </a>
       </div>
       <div class="caption-box">
@@ -169,16 +402,16 @@
   <div id="tab-sensitivity" class="tab-content">
     <div class="card">
       <div class="figure-container">
-        <img src="FigureS3_KM_sensitivity_cohort.png" alt="Figure S3: Sensitivity Cohort KM Curves" class="figure-img" />
+        <img src="FigureS3_KM_sensitivity_cohort.png" alt="Figure S3: Sensitivity Cohort KM Curves" class="figure-img" id="figS3Img" />
       </div>
       <div class="actions">
-        <a href="FigureS3_KM_sensitivity_cohort.svg" target="_blank" class="btn-link">
+        <a href="FigureS3_KM_sensitivity_cohort.svg" download="FigureS3_KM_sensitivity_cohort.svg" class="btn-link">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Open Vector (SVG)
+          Download Vector (SVG)
         </a>
-        <a href="FigureS3_KM_sensitivity_cohort.png" target="_blank" class="btn-link">
+        <a href="FigureS3_KM_sensitivity_cohort.png" download="FigureS3_KM_sensitivity_cohort.png" class="btn-link">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          View Full Size PNG
+          Download PNG (600 DPI)
         </a>
       </div>
       <div class="caption-box">
@@ -187,20 +420,407 @@
       </div>
     </div>
   </div>
+
+  <!-- Dynamic Generated Cohort View -->
+  <div id="tab-dynamic" class="tab-content">
+    <div class="card" id="dynamicFigureCard">
+      <div id="dynamicFigureTarget"></div>
+      <div class="actions" id="dynamicActions" style="display: none;">
+        <button id="btnDownloadDynamicPNG">Download Figure (PNG)</button>
+        <button id="btnDownloadDynamicSVG">Download Figure (SVG)</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
+/* State */
+let uploadedFiles = [];
+let parsedDatasets = [];
+
+const dz = document.getElementById('dz');
+const fileInput = document.getElementById('fileInput');
+const fileList = document.getElementById('fileList');
+const btnGenerate = document.getElementById('btnGenerate');
+const btnClear = document.getElementById('btnClear');
+const errBox = document.getElementById('err');
+
+function showError(msg) {
+  errBox.textContent = msg;
+  errBox.style.display = 'block';
+}
+function clearError() {
+  errBox.style.display = 'none';
+}
+
+dz.addEventListener('click', () => fileInput.click());
+['dragover', 'dragenter'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
+['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
+dz.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+async function handleFiles(files) {
+  clearError();
+  if (!files || !files.length) return;
+
+  for (const f of files) {
+    if (!f.name.toLowerCase().endsWith('.docx')) {
+      showError(`File "${f.name}" is not a .docx Word document.`);
+      continue;
+    }
+    // Prevent duplicate filenames
+    if (uploadedFiles.some(u => u.name === f.name)) continue;
+
+    try {
+      const buf = await f.arrayBuffer();
+      const parsed = await parseTriNetXReport(buf, f.name);
+      uploadedFiles.push({ file: f, parsed: parsed });
+    } catch (err) {
+      console.error(err);
+      showError(`Error reading "${f.name}": ${err.message}`);
+    }
+  }
+
+  updateFileListUI();
+}
+
+function updateFileListUI() {
+  fileList.innerHTML = '';
+  if (!uploadedFiles.length) {
+    btnGenerate.disabled = true;
+    btnClear.disabled = true;
+    return;
+  }
+
+  btnGenerate.disabled = false;
+  btnClear.disabled = false;
+
+  uploadedFiles.forEach((item, idx) => {
+    const chip = document.createElement('div');
+    chip.className = 'file-chip';
+    const horizon = item.parsed.timeWindowDays ? `${Math.round(item.parsed.timeWindowDays/365)}Y` : 'Export';
+    chip.innerHTML = `
+      <span>📄 ${item.file.name}</span>
+      <span class="badge">${horizon}</span>
+    `;
+    fileList.appendChild(chip);
+  });
+}
+
+btnClear.addEventListener('click', () => {
+  uploadedFiles = [];
+  parsedDatasets = [];
+  updateFileListUI();
+  document.getElementById('generatedCard').style.display = 'none';
+  document.getElementById('tabBtnDynamic').style.display = 'none';
+  showTab('primary');
+});
+
+/* OpenXML TriNetX Parser */
+async function parseTriNetXReport(arrayBuffer, fileName) {
+  const zip = await JSZip.loadAsync(arrayBuffer);
+  const docXmlEntry = zip.file('word/document.xml');
+  if (!docXmlEntry) throw new Error('Invalid docx: missing word/document.xml');
+
+  const docXmlStr = await docXmlEntry.async('string');
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(docXmlStr, 'application/xml');
+
+  // Parse relationships to map rId -> target
+  const relmap = {};
+  const relsEntry = zip.file('word/_rels/document.xml.rels');
+  if (relsEntry) {
+    const relsStr = await relsEntry.async('string');
+    const relsDoc = parser.parseFromString(relsStr, 'application/xml');
+    const relEls = relsDoc.getElementsByTagName('Relationship');
+    for (let i = 0; i < relEls.length; i++) {
+      const r = relEls[i];
+      relmap[r.getAttribute('Id')] = r.getAttribute('Target');
+    }
+  }
+
+  // Detect time window days
+  let timeWindowDays = null;
+  const matchDays = docXmlStr.match(/ended\s+(\d+)\s+days\s+after\s+the\s+first\s+occurrence/i);
+  if (matchDays) timeWindowDays = parseInt(matchDays[1], 10);
+
+  // Extract tables
+  const tblNodes = xmlDoc.getElementsByTagName('w:tbl');
+  let cohorts = {};
+  let outcomes = [];
+
+  // Table 5: Cohort count before and after matching
+  if (tblNodes.length > 5) {
+    const t5 = tblNodes[5];
+    const trs = t5.getElementsByTagName('w:tr');
+    for (let r = 0; r < trs.length; r++) {
+      const tcs = trs[r].getElementsByTagName('w:tc');
+      const cells = [];
+      for (let c = 0; c < tcs.length; c++) {
+        const txt = tcs[c].textContent.trim();
+        if (txt) cells.push(txt);
+      }
+      if (cells.length >= 3 && (cells[0].startsWith('1 -') || cells[0].startsWith('2 -'))) {
+        const cNum = cells[0].charAt(0);
+        const cName = cells[0].substring(4).trim();
+        cohorts[cNum] = {
+          name: cName,
+          n_before: cells[1],
+          n_after: cells[2]
+        };
+      }
+    }
+  }
+
+  // Table 7: Compare Outcomes Analysis (Outcomes, statistics, KM curves)
+  if (tblNodes.length > 7) {
+    const t7 = tblNodes[7];
+    const trs = t7.getElementsByTagName('w:tr');
+    let curOutcome = null;
+
+    for (let r = 0; r < trs.length; r++) {
+      const tr = trs[r];
+      const tcs = tr.getElementsByTagName('w:tc');
+      const cells = [];
+      for (let c = 0; c < tcs.length; c++) {
+        const txt = tcs[c].textContent.trim().replace(/\s+/g, ' ');
+        if (txt) cells.push(txt);
+      }
+
+      if (cells.length > 0) {
+        const first = cells[0];
+        const matchTitle = first.match(/^(\d+)\s+([A-Za-z].+)$/);
+        if (matchTitle && !['Cohort', 'Log-Rank', 'Hazard Ratio', 'Risk', 'Kaplan'].some(k => first.includes(k))) {
+          curOutcome = {
+            number: parseInt(matchTitle[1], 10),
+            name: matchTitle[2].trim(),
+            arms: [],
+            images: []
+          };
+          outcomes.push(curOutcome);
+          continue;
+        }
+      }
+
+      if (curOutcome) {
+        // Arm survival row
+        if (cells.length >= 4 && (cells[0] === '1' || cells[0] === '2') && cells.some(c => c.includes('%'))) {
+          curOutcome.arms.push({
+            arm: cells[0],
+            name: cells[1],
+            n: cells[2],
+            events: cells[3],
+            survival: cells.find(c => c.includes('%'))
+          });
+        } else if (cells.some(c => c.includes('Log-Rank Test'))) {
+          curOutcome.logrank_p = cells[cells.length - 1];
+        } else if (cells.some(c => c.includes('Hazard Ratio and Proportionality'))) {
+          curOutcome.hr = cells[1];
+          curOutcome.hr_ci = cells[2];
+          curOutcome.hr_p = cells[cells.length - 1];
+        }
+
+        // Image embeds
+        const blipNodes = tr.getElementsByTagName('a:blip');
+        for (let b = 0; b < blipNodes.length; b++) {
+          const rid = blipNodes[b].getAttribute('r:embed');
+          const target = relmap[rid];
+          if (target && target.endsWith('.png')) {
+            curOutcome.images.push(target);
+          }
+        }
+      }
+    }
+  }
+
+  // Load image binary blobs
+  for (const o of outcomes) {
+    // The second image in each outcome pair is the post-PSM curve
+    const kmTarget = (o.images.length >= 2) ? o.images[1] : (o.images.length === 1 ? o.images[0] : null);
+    if (kmTarget) {
+      o.kmImageTarget = kmTarget;
+      const imgFile = zip.file('word/' + kmTarget);
+      if (imgFile) {
+        const imgBlob = await imgFile.async('blob');
+        o.kmImageBlob = imgBlob;
+        o.kmImageUrl = URL.createObjectURL(imgBlob);
+      }
+    }
+  }
+
+  return {
+    fileName,
+    timeWindowDays,
+    cohorts,
+    outcomes
+  };
+}
+
+/* Tab display logic */
 function showTab(id) {
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-  
+
   if (id === 'primary') {
     document.querySelectorAll('.tab-btn')[0].classList.add('active');
     document.getElementById('tab-primary').classList.add('active');
-  } else {
+  } else if (id === 'sensitivity') {
     document.querySelectorAll('.tab-btn')[1].classList.add('active');
     document.getElementById('tab-sensitivity').classList.add('active');
+  } else if (id === 'dynamic') {
+    document.getElementById('tabBtnDynamic').classList.add('active');
+    document.getElementById('tab-dynamic').classList.add('active');
   }
+}
+
+/* Generation logic */
+btnGenerate.addEventListener('click', async () => {
+  if (!uploadedFiles.length) return;
+
+  // Find 5Y report (or longest time window available)
+  let targetReport = uploadedFiles.find(u => u.parsed.timeWindowDays === 1825);
+  if (!targetReport) {
+    targetReport = uploadedFiles.reduce((max, u) => (!max || (u.parsed.timeWindowDays > max.parsed.timeWindowDays) ? u : max), null);
+  }
+
+  const parsed = targetReport.parsed;
+  if (!parsed.outcomes || !parsed.outcomes.length) {
+    showError('No outcomes could be identified in the uploaded report.');
+    return;
+  }
+
+  // Render Stats Table
+  const statsDiv = document.getElementById('summaryStats');
+  let cohort1Name = parsed.cohorts['1'] ? parsed.cohorts['1'].name : 'Cohort 1';
+  let cohort2Name = parsed.cohorts['2'] ? parsed.cohorts['2'].name : 'Cohort 2';
+  let matchedPairs = parsed.cohorts['1'] ? parsed.cohorts['1'].n_after : 'Matched';
+
+  let tableHtml = `
+    <table class="stats-table">
+      <thead>
+        <tr>
+          <th>Outcome</th>
+          <th>Events (${cohort1Name})</th>
+          <th>Events (${cohort2Name})</th>
+          <th>End-of-Window Survival</th>
+          <th>Hazard Ratio (95% CI)</th>
+          <th>Log-Rank p</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  parsed.outcomes.forEach(o => {
+    const c1Arm = o.arms.find(a => a.arm === '1') || {};
+    const c2Arm = o.arms.find(a => a.arm === '2') || {};
+    const survStr = `${c1Arm.survival || '--'} vs ${c2Arm.survival || '--'}`;
+    const hrStr = o.hr ? `${o.hr} ${o.hr_ci || ''}` : '--';
+    const pStr = o.logrank_p !== undefined ? (parseFloat(o.logrank_p) < 0.001 ? '<0.001' : o.logrank_p) : '--';
+
+    tableHtml += `
+      <tr>
+        <td><strong>${o.number}. ${o.name}</strong></td>
+        <td class="num">${c1Arm.events || '--'} / ${c1Arm.n || '--'}</td>
+        <td class="num">${c2Arm.events || '--'} / ${c2Arm.n || '--'}</td>
+        <td class="num">${survStr}</td>
+        <td><span class="badge-stat">HR ${hrStr}</span></td>
+        <td><span class="badge-stat">p = ${pStr}</span></td>
+      </tr>
+    `;
+  });
+
+  tableHtml += `</tbody></table>`;
+  statsDiv.innerHTML = tableHtml;
+
+  // Render Multi-panel Grid
+  const panelsDiv = document.getElementById('generatedPanels');
+  panelsDiv.className = 'panels-grid';
+  panelsDiv.innerHTML = '';
+
+  parsed.outcomes.forEach((o, i) => {
+    const letter = String.fromCharCode(65 + i); // 'A', 'B', 'C'
+    const card = document.createElement('div');
+    card.className = 'panel-card';
+
+    let imgSrc = o.kmImageUrl || '';
+    let hrSummary = o.hr ? `HR ${o.hr} (${o.hr_ci || ''})` : '';
+    let pVal = o.logrank_p !== undefined ? (parseFloat(o.logrank_p) < 0.001 ? 'p<0.001' : `p=${o.logrank_p}`) : '';
+
+    card.innerHTML = `
+      <div class="panel-header">
+        <div class="panel-title">${letter}. ${o.name}</div>
+        <div class="panel-badge">${hrSummary} | ${pVal}</div>
+      </div>
+      <div>
+        ${imgSrc ? `<img src="${imgSrc}" class="panel-img" alt="${o.name} KM Curve" />` : '<div style="padding:40px;text-align:center;color:#999;">Curve extracted</div>'}
+      </div>
+      <table class="risk-table">
+        <thead>
+          <tr>
+            <th>Time (Days)</th>
+            <th>0</th>
+            <th>365</th>
+            <th>730</th>
+            <th>1095</th>
+            <th>1460</th>
+            <th>1825</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="cas-row">
+            <td>${cohort1Name.split(' ')[0] || 'CAS'}</td>
+            <td>${c1N(o, parsed)}</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>${o.arms.find(a=>a.arm==='1')?.events ? 'Events: '+o.arms.find(a=>a.arm==='1').events : '—'}</td>
+          </tr>
+          <tr class="cea-row">
+            <td>${cohort2Name.split(' ')[0] || 'CEA'}</td>
+            <td>${c2N(o, parsed)}</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>${o.arms.find(a=>a.arm==='2')?.events ? 'Events: '+o.arms.find(a=>a.arm==='2').events : '—'}</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+    panelsDiv.appendChild(card);
+  });
+
+  // Generated Caption
+  const captionDiv = document.getElementById('generatedCaption');
+  const panelDesc = parsed.outcomes.map((o, idx) => `(${String.fromCharCode(65 + idx)}) ${o.name.toLowerCase()}`).join('; ');
+  captionDiv.innerHTML = `
+    <span class="caption-title">Figure. Kaplan-Meier cumulative incidence of outcomes over ${parsed.timeWindowDays ? Math.round(parsed.timeWindowDays/365) : 5} years following ${cohort1Name} versus ${cohort2Name} in the propensity score-matched cohort (${matchedPairs} matched pairs).</span>
+    ${panelDesc}. In each panel, curve traces depict estimated cumulative incidence over follow-up with corresponding hazard ratios (HRs), 95% confidence intervals, and log-rank p-values.
+  `;
+
+  document.getElementById('generatedCard').style.display = 'block';
+  document.getElementById('tabBtnDynamic').style.display = 'inline-block';
+  
+  // Clone generated into dynamic tab
+  const dynamicTarget = document.getElementById('dynamicFigureTarget');
+  dynamicTarget.innerHTML = panelsDiv.outerHTML + captionDiv.outerHTML;
+  
+  showTab('dynamic');
+});
+
+function c1N(outcome, parsed) {
+  const arm = outcome.arms.find(a => a.arm === '1');
+  if (arm && arm.n) return arm.n;
+  if (parsed.cohorts['1']) return parsed.cohorts['1'].n_after;
+  return '—';
+}
+function c2N(outcome, parsed) {
+  const arm = outcome.arms.find(a => a.arm === '2');
+  if (arm && arm.n) return arm.n;
+  if (parsed.cohorts['2']) return parsed.cohorts['2'].n_after;
+  return '—';
 }
 </script>
 </body>
