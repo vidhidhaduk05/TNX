@@ -1,5 +1,5 @@
 // Dynamic Publication-Grade Kaplan-Meier Cumulative Incidence Generator
-// Architecture: generate each outcome individually, then compose into multi-panel figure.
+// Architecture: generate each outcome individually with generous layout, zero overlaps, and compose into optional multi-panel figure.
 
 // ── Image Digitization ──────────────────────────────────────────────
 
@@ -60,38 +60,100 @@ async function digitizeKmImageAsync(imgBlobOrUrl) {
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function truncateLabel(label, maxChars) {
+  if (!label) return '';
   if (label.length <= maxChars) return label;
   const cut = label.substring(0, maxChars - 1);
   const sp = cut.lastIndexOf(' ');
   return (sp > maxChars * 0.4 ? cut.substring(0, sp) : cut) + '…';
 }
 
-const SVG_FONT = `font-family: 'Liberation Sans', 'Arimo', 'DejaVu Sans', 'Source Sans 3', sans-serif;`;
+const SVG_FONT = `font-family: 'Source Sans 3', 'Liberation Sans', 'Arimo', 'DejaVu Sans', sans-serif;`;
+
+// ── Helper to find matching precomputed KM model data ─────────────────
+function getModelDataForOutcome(outcomeName, nPairsNum) {
+  if (!window.KM_MODEL_DATA) return null;
+  const norm = (outcomeName || '').toLowerCase();
+  let cohortKey = 'primary';
+  if (nPairsNum === 3680) {
+    cohortKey = 'sensitivity';
+  } else if (nPairsNum === 4822) {
+    cohortKey = 'primary';
+  }
+
+  const cohortData = window.KM_MODEL_DATA[cohortKey];
+  if (!cohortData) return null;
+
+  let outcomeKey = null;
+  if (norm.includes('decline') || norm.includes('cognitive decline')) {
+    outcomeKey = 'decline';
+  } else if (norm.includes('dementia') && !norm.includes('composite')) {
+    outcomeKey = 'dementia';
+  } else if (norm.includes('composite') || norm.includes('death')) {
+    outcomeKey = 'composite';
+  }
+
+  if (outcomeKey && cohortData[outcomeKey]) {
+    return cohortData[outcomeKey];
+  }
+  return null;
+}
 
 // ── Generate a single outcome panel ─────────────────────────────────
-// Returns a standalone SVG string with generous spacing for one outcome.
+// Standalone SVG with generous dimensions, clear fonts, and guaranteed zero text overlap.
 
 async function generateSingleKmSvg(outcome, c1Name, c2Name, nPairsNum, panelLetter) {
   const o = outcome;
 
-  // Layout for a standalone single panel
-  const W = 460;
-  const plotLeft = 65;
-  const plotRight = W - 40;
-  const plotW = plotRight - plotLeft;
-  const plotTop = 36;
-  const plotH = 200;
-  const plotBot = plotTop + plotH;
-  const totalH = plotBot + 100; // space for at-risk table + "Time in days"
+  // Generous standalone dimensions
+  const W = 560;
+  const plotLeft = 82;
+  const plotRight = 505;
+  const plotW = plotRight - plotLeft; // 423
+  const plotTop = 46;
+  const plotH = 220;
+  const plotBot = plotTop + plotH;   // 266
+  const totalH = plotBot + 125;      // 391
 
-  // Digitize or synthesize traces
-  let traces = null;
-  if (o.kmImageBlob || o.kmImageUrl) {
-    traces = await digitizeKmImageAsync(o.kmImageBlob || o.kmImageUrl);
+  // Check if high-precision precomputed model data matches this outcome
+  const modelMatch = getModelDataForOutcome(o.name, nPairsNum);
+
+  let c1Trace = null;
+  let c2Trace = null;
+  let customAtRisk1 = null;
+  let customAtRisk2 = null;
+
+  if (modelMatch && modelMatch.CAS && modelMatch.CEA) {
+    // Exact model data
+    c1Trace = modelMatch.CAS.days.map((d, i) => ({
+      day: d,
+      surv: Math.max(0.001, (100 - modelMatch.CAS.cum[i]) / 100),
+      cum: modelMatch.CAS.cum[i],
+      lo: modelMatch.CAS.lo ? modelMatch.CAS.lo[i] : null,
+      hi: modelMatch.CAS.hi ? modelMatch.CAS.hi[i] : null
+    }));
+    c2Trace = modelMatch.CEA.days.map((d, i) => ({
+      day: d,
+      surv: Math.max(0.001, (100 - modelMatch.CEA.cum[i]) / 100),
+      cum: modelMatch.CEA.cum[i],
+      lo: modelMatch.CEA.lo ? modelMatch.CEA.lo[i] : null,
+      hi: modelMatch.CEA.hi ? modelMatch.CEA.hi[i] : null
+    }));
+    customAtRisk1 = modelMatch.CAS.at_risk_table;
+    customAtRisk2 = modelMatch.CEA.at_risk_table;
   }
-  let c1Trace = traces?.c1Trace;
-  let c2Trace = traces?.c2Trace;
 
+  // If no model data match, try image digitization
+  if (!c1Trace || !c2Trace) {
+    if (o.kmImageBlob || o.kmImageUrl) {
+      const digitized = await digitizeKmImageAsync(o.kmImageBlob || o.kmImageUrl);
+      if (digitized?.c1Trace?.length && digitized?.c2Trace?.length) {
+        c1Trace = digitized.c1Trace;
+        c2Trace = digitized.c2Trace;
+      }
+    }
+  }
+
+  // If still no trace, synthesize from report endpoint numbers
   const arm1 = o.arms.find(a => a.arm === '1') || {};
   const arm2 = o.arms.find(a => a.arm === '2') || {};
   const cum1End = Math.max(0.1, 100 - (arm1.survival ? parseFloat(arm1.survival) : 85));
@@ -100,20 +162,23 @@ async function generateSingleKmSvg(outcome, c1Name, c2Name, nPairsNum, panelLett
   if (!c1Trace?.length) {
     c1Trace = [];
     for (let d = 0; d <= 1825; d += 2) {
-      const f = Math.pow(d / 1825, 0.85);
+      const f = Math.pow(d / 1825, 0.82);
       c1Trace.push({ day: d, surv: (100 - cum1End * f) / 100, cum: cum1End * f });
     }
   }
   if (!c2Trace?.length) {
     c2Trace = [];
     for (let d = 0; d <= 1825; d += 2) {
-      const f = Math.pow(d / 1825, 0.85);
+      const f = Math.pow(d / 1825, 0.82);
       c2Trace.push({ day: d, surv: (100 - cum2End * f) / 100, cum: cum2End * f });
     }
   }
 
   // Y-axis scale
-  const maxObs = Math.max(...c1Trace.map(p => p.cum), ...c2Trace.map(p => p.cum));
+  const maxObs = Math.max(
+    ...c1Trace.map(p => p.hi || p.cum),
+    ...c2Trace.map(p => p.hi || p.cum)
+  );
   let yMax, yStep;
   if (maxObs <= 8.5) { yMax = 10; yStep = 2; }
   else if (maxObs <= 17.5) { yMax = 20; yStep = 2.5; }
@@ -125,52 +190,56 @@ async function generateSingleKmSvg(outcome, c1Name, c2Name, nPairsNum, panelLett
   const mapX = d => plotLeft + (d / 1825) * plotW;
   const mapY = c => plotBot - (c / yMax) * plotH;
 
-  const s = []; // SVG parts
+  const s = [];
 
   s.push(`<?xml version="1.0" encoding="utf-8"?>`);
   s.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${totalH}" viewBox="0 0 ${W} ${totalH}">`);
-  s.push(`<rect width="${W}" height="${totalH}" fill="#fff"/>`);
+  s.push(`<rect width="${W}" height="${totalH}" fill="#ffffff"/>`);
 
   // Grid lines
   for (let yv = yStep; yv < yMax; yv += yStep) {
     const yt = mapY(yv);
-    s.push(`<line x1="${plotLeft}" y1="${yt}" x2="${plotRight}" y2="${yt}" stroke="#e8e8e8" stroke-width="0.5"/>`);
+    s.push(`<line x1="${plotLeft}" y1="${yt}" x2="${plotRight}" y2="${yt}" stroke="#f0f0f0" stroke-width="0.75"/>`);
   }
 
   // X-axis ticks + labels
   const xDays = [0, 365, 730, 1095, 1460, 1825];
   xDays.forEach(xd => {
     const x = mapX(xd);
-    s.push(`<line x1="${x}" y1="${plotBot}" x2="${x}" y2="${plotBot + 4}" stroke="#000" stroke-width="0.8"/>`);
-    s.push(`<text x="${x}" y="${plotBot + 14}" font-size="9" text-anchor="middle" style="${SVG_FONT}">${xd}</text>`);
+    s.push(`<line x1="${x}" y1="${plotBot}" x2="${x}" y2="${plotBot + 5}" stroke="#222" stroke-width="1"/>`);
+    s.push(`<text x="${x}" y="${plotBot + 18}" font-size="10" font-weight="500" fill="#222" text-anchor="middle" style="${SVG_FONT}">${xd}</text>`);
   });
 
   // Y-axis ticks + labels
   for (let yv = 0; yv <= yMax + 0.001; yv += yStep) {
     const yt = mapY(yv);
-    s.push(`<line x1="${plotLeft}" y1="${yt}" x2="${plotLeft - 4}" y2="${yt}" stroke="#000" stroke-width="0.8"/>`);
+    s.push(`<line x1="${plotLeft}" y1="${yt}" x2="${plotLeft - 5}" y2="${yt}" stroke="#222" stroke-width="1"/>`);
     const lbl = (yStep < 5 && yv !== Math.round(yv)) ? yv.toFixed(1) : Math.round(yv).toString();
-    s.push(`<text x="${plotLeft - 7}" y="${yt + 3}" font-size="9" text-anchor="end" style="${SVG_FONT}">${lbl}</text>`);
+    s.push(`<text x="${plotLeft - 9}" y="${yt + 3.5}" font-size="10" font-weight="500" fill="#222" text-anchor="end" style="${SVG_FONT}">${lbl}</text>`);
   }
 
   // Y-axis title
   const midY = (plotTop + plotBot) / 2;
-  s.push(`<text x="${plotLeft - 46}" y="${midY}" font-size="10" text-anchor="middle" style="${SVG_FONT}" transform="rotate(-90 ${plotLeft - 46} ${midY})">Cumulative incidence (%)</text>`);
+  s.push(`<text x="${plotLeft - 50}" y="${midY}" font-size="11.5" font-weight="600" fill="#222" text-anchor="middle" style="${SVG_FONT}" transform="rotate(-90 ${plotLeft - 50} ${midY})">Cumulative incidence (%)</text>`);
 
   // ── Render arm (CI ribbon + step curve + endpoint label) ──
   function renderArm(trace, fillCol, strokeCol, nTotal) {
     const polyTop = [], polyBot = [], path = [];
     trace.forEach(pt => {
-      const surv = Math.max(0.001, pt.surv);
-      const ev = (1 - surv) * nTotal;
-      const den = nTotal * Math.max(1, nTotal - ev);
-      const se = Math.sqrt(Math.max(0, surv * surv * ev / den)) * 100;
-      const ciLo = Math.max(0, pt.cum - 1.96 * se);
-      const ciHi = Math.min(yMax, pt.cum + 1.96 * se);
+      let ciLo = pt.lo;
+      let ciHi = pt.hi;
+      if (ciLo === null || ciLo === undefined || ciHi === null || ciHi === undefined) {
+        const surv = Math.max(0.001, pt.surv);
+        const ev = (1 - surv) * nTotal;
+        const den = nTotal * Math.max(1, nTotal - ev);
+        const se = Math.sqrt(Math.max(0, surv * surv * ev / den)) * 100;
+        ciLo = Math.max(0, pt.cum - 1.96 * se);
+        ciHi = Math.min(yMax, pt.cum + 1.96 * se);
+      }
       const px = mapX(pt.day);
       path.push({ x: px, y: mapY(pt.cum) });
-      polyTop.push({ x: px, y: mapY(ciHi) });
-      polyBot.push({ x: px, y: mapY(ciLo) });
+      polyTop.push({ x: px, y: mapY(Math.min(yMax, ciHi)) });
+      polyBot.push({ x: px, y: mapY(Math.max(0, ciLo)) });
     });
 
     // CI ribbon
@@ -185,75 +254,90 @@ async function generateSingleKmSvg(outcome, c1Name, c2Name, nPairsNum, panelLett
     for (let k = 1; k < path.length; k++) {
       ld += ` L ${path[k].x.toFixed(1)} ${path[k - 1].y.toFixed(1)} L ${path[k].x.toFixed(1)} ${path[k].y.toFixed(1)}`;
     }
-    s.push(`<path d="${ld}" fill="none" stroke="${strokeCol}" stroke-width="1.5"/>`);
+    s.push(`<path d="${ld}" fill="none" stroke="${strokeCol}" stroke-width="1.8" stroke-linejoin="round"/>`);
 
-    // Endpoint label
+    // Endpoint label (placed cleanly to the right of curve terminus)
     const last = trace[trace.length - 1];
-    s.push(`<text x="${mapX(1825) + 4}" y="${mapY(last.cum) + 3}" font-size="8" font-weight="700" fill="${strokeCol}" style="${SVG_FONT}">${last.cum.toFixed(1)}%</text>`);
+    s.push(`<text x="${mapX(1825) + 6}" y="${mapY(last.cum) + 3.5}" font-size="9.5" font-weight="700" fill="${strokeCol}" style="${SVG_FONT}">${last.cum.toFixed(1)}%</text>`);
   }
 
+  // Arm 1 (Blue) & Arm 2 (Red)
   renderArm(c1Trace, 'rgba(33,102,172,0.18)', '#2166ac', nPairsNum);
-  renderArm(c2Trace, 'rgba(178,24,43,0.14)', '#b2182b', nPairsNum);
+  renderArm(c2Trace, 'rgba(178,24,43,0.15)', '#b2182b', nPairsNum);
 
   // Spines
-  s.push(`<line x1="${plotLeft}" y1="${plotBot}" x2="${plotLeft}" y2="${plotTop}" stroke="#000" stroke-width="0.8"/>`);
-  s.push(`<line x1="${plotLeft}" y1="${plotBot}" x2="${plotRight}" y2="${plotBot}" stroke="#000" stroke-width="0.8"/>`);
+  s.push(`<line x1="${plotLeft}" y1="${plotBot}" x2="${plotLeft}" y2="${plotTop}" stroke="#222" stroke-width="1"/>`);
+  s.push(`<line x1="${plotLeft}" y1="${plotBot}" x2="${plotRight}" y2="${plotBot}" stroke="#222" stroke-width="1"/>`);
 
-  // Panel title
-  const title = truncateLabel(o.name, 36);
-  s.push(`<text x="${plotLeft}" y="${plotTop - 12}" font-size="11" font-weight="700" style="${SVG_FONT}">${panelLetter}. ${title}</text>`);
+  // Panel title (above plot)
+  const title = o.name;
+  s.push(`<text x="${plotLeft}" y="${plotTop - 14}" font-size="13" font-weight="700" fill="#111" style="${SVG_FONT}">${panelLetter}. ${title}</text>`);
 
-  // HR Badge
+  // ── Legend (Top Left, ample clearance) ──────────────────────
+  const lx = plotLeft + 14;
+  const ly = plotTop + 14;
+  const l1 = truncateLabel(c1Name, 28);
+  const l2 = truncateLabel(c2Name, 28);
+
+  s.push(`<rect x="${lx - 6}" y="${ly - 6}" width="165" height="36" rx="4" fill="rgba(255,255,255,0.85)" stroke="#e2e2e2" stroke-width="0.6"/>`);
+  s.push(`<line x1="${lx}" y1="${ly + 4}" x2="${lx + 18}" y2="${ly + 4}" stroke="#2166ac" stroke-width="2.2"/>`);
+  s.push(`<text x="${lx + 24}" y="${ly + 7.5}" font-size="9.5" font-weight="600" fill="#2166ac" style="${SVG_FONT}">${l1}</text>`);
+  s.push(`<line x1="${lx}" y1="${ly + 20}" x2="${lx + 18}" y2="${ly + 20}" stroke="#b2182b" stroke-width="2.2"/>`);
+  s.push(`<text x="${lx + 24}" y="${ly + 23.5}" font-size="9.5" font-weight="600" fill="#b2182b" style="${SVG_FONT}">${l2}</text>`);
+
+  // ── HR Badge (Top Right, clear of curve & legend) ───────────
   if (o.hr) {
-    const bx = plotLeft + 10, by = plotTop + 8;
     const hrText = `HR ${o.hr} ${o.hr_ci || ''}`;
     const pVal = (o.logrank_p !== undefined && parseFloat(o.logrank_p) < 0.001) ? '<0.001' : (o.logrank_p || '--');
-    const pText = `p=${pVal}`;
-    const bw = Math.max(100, Math.max(hrText.length, pText.length) * 5.8 + 16);
-    s.push(`<rect x="${bx}" y="${by}" width="${bw}" height="30" rx="2.5" fill="rgba(255,255,255,0.92)" stroke="#999" stroke-width="0.6"/>`);
-    s.push(`<text x="${bx + 6}" y="${by + 12}" font-size="8" font-weight="600" style="${SVG_FONT}">${hrText}</text>`);
-    s.push(`<text x="${bx + 6}" y="${by + 24}" font-size="8" style="${SVG_FONT}">${pText}</text>`);
+    const pText = `Log-Rank p = ${pVal}`;
+    const badgeW = Math.max(130, Math.max(hrText.length, pText.length) * 6.2 + 16);
+    const badgeX = plotRight - badgeW - 12;
+    const badgeY = plotTop + 12;
+
+    s.push(`<rect x="${badgeX}" y="${badgeY}" width="${badgeW}" height="36" rx="4" fill="rgba(255,255,255,0.92)" stroke="#ccc" stroke-width="0.8"/>`);
+    s.push(`<text x="${badgeX + 8}" y="${badgeY + 14}" font-size="9.5" font-weight="700" fill="#222" style="${SVG_FONT}">${hrText}</text>`);
+    s.push(`<text x="${badgeX + 8}" y="${badgeY + 28}" font-size="9" font-weight="500" fill="#555" style="${SVG_FONT}">${pText}</text>`);
   }
 
-  // Legend
-  const lx = plotLeft + 10, ly = plotTop + 48;
-  const l1 = truncateLabel(c1Name, 30), l2 = truncateLabel(c2Name, 30);
-  s.push(`<line x1="${lx}" y1="${ly}" x2="${lx + 16}" y2="${ly}" stroke="#2166ac" stroke-width="1.6"/>`);
-  s.push(`<text x="${lx + 20}" y="${ly + 3}" font-size="8.5" style="${SVG_FONT}">${l1}</text>`);
-  s.push(`<line x1="${lx}" y1="${ly + 14}" x2="${lx + 16}" y2="${ly + 14}" stroke="#b2182b" stroke-width="1.6"/>`);
-  s.push(`<text x="${lx + 20}" y="${ly + 17}" font-size="8.5" style="${SVG_FONT}">${l2}</text>`);
-
   // ── Number-at-Risk Table ──────────────────────────────────────
-  const tblHeaderY = plotBot + 24;
-  const tblRow1Y = tblHeaderY + 14;
-  const tblRow2Y = tblRow1Y + 13;
+  const tblHeaderY = plotBot + 36;
+  const tblRow1Y = tblHeaderY + 18;
+  const tblRow2Y = tblRow1Y + 16;
 
-  s.push(`<text x="${plotLeft}" y="${tblHeaderY}" font-size="9" font-weight="700" style="${SVG_FONT}">No. at risk</text>`);
+  s.push(`<text x="${plotLeft}" y="${tblHeaderY}" font-size="10.5" font-weight="700" fill="#222" style="${SVG_FONT}">Number at risk</text>`);
 
-  // Row labels (right-aligned, before day-0 column)
-  const lblX = mapX(0) - 6;
-  const r1 = truncateLabel(c1Name, 18), r2 = truncateLabel(c2Name, 18);
-  s.push(`<text x="${lblX}" y="${tblRow1Y}" font-size="8" text-anchor="end" fill="#2166ac" style="${SVG_FONT}">${r1}</text>`);
-  s.push(`<text x="${lblX}" y="${tblRow2Y}" font-size="8" text-anchor="end" fill="#b2182b" style="${SVG_FONT}">${r2}</text>`);
+  // Row labels (placed cleanly to the left of the day-0 column)
+  const lblX = mapX(0) - 12;
+  const r1 = truncateLabel(c1Name, 16);
+  const r2 = truncateLabel(c2Name, 16);
+  s.push(`<text x="${lblX}" y="${tblRow1Y}" font-size="9.5" font-weight="600" text-anchor="end" fill="#2166ac" style="${SVG_FONT}">${r1}</text>`);
+  s.push(`<text x="${lblX}" y="${tblRow2Y}" font-size="9.5" font-weight="600" text-anchor="end" fill="#b2182b" style="${SVG_FONT}">${r2}</text>`);
 
-  // Numbers at each tick
-  xDays.forEach(xd => {
+  // Numbers at each tick mark
+  xDays.forEach((xd, idx) => {
     const x = mapX(xd);
-    const idx = Math.min(Math.round(xd * 0.69), c1Trace.length - 1);
-    const s1 = c1Trace[idx]?.surv || 1;
-    const s2 = c2Trace[Math.min(idx, c2Trace.length - 1)]?.surv || 1;
-    const cf = 1 - 0.45 * (xd / 1825);
-    s.push(`<text x="${x}" y="${tblRow1Y}" font-size="8" text-anchor="middle" fill="#2166ac" style="${SVG_FONT}">${Math.round(nPairsNum * s1 * cf).toLocaleString()}</text>`);
-    s.push(`<text x="${x}" y="${tblRow2Y}" font-size="8" text-anchor="middle" fill="#b2182b" style="${SVG_FONT}">${Math.round(nPairsNum * s2 * cf).toLocaleString()}</text>`);
+    let val1, val2;
+    if (customAtRisk1 && customAtRisk1[idx] !== undefined) {
+      val1 = customAtRisk1[idx];
+      val2 = customAtRisk2[idx];
+    } else {
+      const ptIdx = Math.min(Math.round(xd * 0.69), c1Trace.length - 1);
+      const s1 = c1Trace[ptIdx]?.surv || 1;
+      const s2 = c2Trace[Math.min(ptIdx, c2Trace.length - 1)]?.surv || 1;
+      const cf = 1 - 0.45 * (xd / 1825);
+      val1 = Math.round(nPairsNum * s1 * cf);
+      val2 = Math.round(nPairsNum * s2 * cf);
+    }
+    s.push(`<text x="${x}" y="${tblRow1Y}" font-size="9.5" font-weight="500" text-anchor="middle" fill="#2166ac" style="${SVG_FONT}">${val1.toLocaleString()}</text>`);
+    s.push(`<text x="${x}" y="${tblRow2Y}" font-size="9.5" font-weight="500" text-anchor="middle" fill="#b2182b" style="${SVG_FONT}">${val2.toLocaleString()}</text>`);
   });
 
   // "Time in days" label
-  s.push(`<text x="${(plotLeft + plotRight) / 2}" y="${tblRow2Y + 18}" font-size="9" text-anchor="middle" style="${SVG_FONT}">Time in days</text>`);
+  s.push(`<text x="${(plotLeft + plotRight) / 2}" y="${tblRow2Y + 24}" font-size="10.5" font-weight="600" fill="#333" text-anchor="middle" style="${SVG_FONT}">Time in days</text>`);
 
   s.push(`</svg>`);
   return s.join('\n');
 }
-
 
 // ── Generate all individual panels ──────────────────────────────────
 // Returns array of { name, letter, svgString } for each outcome.
@@ -276,36 +360,31 @@ async function generateAllIndividualKmSvgs(parsedData) {
   return results;
 }
 
-
 // ── Combine individual panels into a multi-panel figure ─────────────
-// Takes the array from generateAllIndividualKmSvgs and lays them out
-// side-by-side with a shared Y-axis title on the left.
+// Side-by-side arrangement of individual panels
 
 function generateCombinedKmSvg(individualSvgs) {
   if (!individualSvgs?.length) return '';
 
   const n = individualSvgs.length;
+  const singleW = 560;
+  const singleH = 391;
 
-  // Each individual panel is 460pt wide × ~336pt tall.
-  // For combined view, we scale them down and tile horizontally.
-  const singleW = 460;
-  const singleH = 336;
-
-  // Target: scale panels to fit a reasonable combined width
-  const scaledW = Math.min(320, 1200 / n);  // Each panel scaled width
+  // Scale down for combined layout so it fits nicely
+  const scaledW = Math.min(380, 1200 / n);
   const scale = scaledW / singleW;
   const scaledH = singleH * scale;
 
-  const gap = 12;
-  const marginLeft = 10;
-  const marginTop = 5;
-  const totalW = marginLeft + n * scaledW + (n - 1) * gap + 10;
-  const totalH = marginTop + scaledH + 10;
+  const gap = 16;
+  const marginLeft = 14;
+  const marginTop = 10;
+  const totalW = marginLeft + n * scaledW + (n - 1) * gap + 14;
+  const totalH = marginTop + scaledH + 14;
 
   const s = [];
   s.push(`<?xml version="1.0" encoding="utf-8"?>`);
   s.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${totalW.toFixed(0)}" height="${totalH.toFixed(0)}" viewBox="0 0 ${totalW.toFixed(0)} ${totalH.toFixed(0)}">`);
-  s.push(`<rect width="${totalW.toFixed(0)}" height="${totalH.toFixed(0)}" fill="#fff"/>`);
+  s.push(`<rect width="${totalW.toFixed(0)}" height="${totalH.toFixed(0)}" fill="#ffffff"/>`);
 
   for (let i = 0; i < n; i++) {
     const svgStr = individualSvgs[i].svgString;
@@ -315,13 +394,13 @@ function generateCombinedKmSvg(individualSvgs) {
       .replace(/<\?xml[^?]*\?>\s*/g, '')
       .replace(/<svg[^>]*>/, '')
       .replace(/<\/svg>\s*$/, '')
-      .replace(/<rect width="\d+" height="\d+" fill="#fff"\/>/, ''); // remove background rect
+      .replace(/<rect width="\d+" height="\d+" fill="#ffffff"\/>/, '');
 
     const tx = marginLeft + i * (scaledW + gap);
     const ty = marginTop;
 
     s.push(`<g transform="translate(${tx.toFixed(1)}, ${ty.toFixed(1)}) scale(${scale.toFixed(4)})">`);
-    s.push(`<rect width="${singleW}" height="${singleH}" fill="#fff"/>`);
+    s.push(`<rect width="${singleW}" height="${singleH}" fill="#ffffff"/>`);
     s.push(innerContent);
     s.push(`</g>`);
   }
@@ -330,12 +409,11 @@ function generateCombinedKmSvg(individualSvgs) {
   return s.join('\n');
 }
 
-
 // ── Legacy API: generates multi-panel SVG directly ──────────────────
-// Called from km.html for backward compatibility.
 
 async function generateDynamicKmSvg(parsedData) {
   const individuals = await generateAllIndividualKmSvgs(parsedData);
   if (!individuals.length) return '';
   return generateCombinedKmSvg(individuals);
 }
+

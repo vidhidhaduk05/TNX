@@ -217,7 +217,57 @@
     font-weight: 700;
     color: var(--accent-dark);
   }
-  
+
+  /* Outcome Panel Cards */
+  .outcome-panel-card {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 18px 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .outcome-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .outcome-title {
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0;
+  }
+  .panel-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .panel-actions button {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  .panel-svg-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    background: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 0;
+  }
+  .panel-svg-wrapper svg {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
   .actions {
     display: flex;
     gap: 10px;
@@ -271,18 +321,31 @@
 
   <!-- Generated Output Section -->
   <div id="generatedCard" class="card" style="display: none;">
-    <h2>Generated Kaplan-Meier Curves & Outcomes</h2>
+    <h2>Generated Kaplan-Meier Outcome Curves</h2>
     
-    <!-- Actions / Export Controls -->
-    <div class="actions" style="margin-bottom: 16px;">
-      <button id="btnDownloadPNG" class="primary">Download All Panels (PNG - 300 DPI)</button>
-      <button id="btnDownloadTIFF" class="primary">Download All Panels (TIFF - 300 DPI)</button>
-      <button id="btnDownloadSVG">Download All Panels (SVG)</button>
+    <!-- Global Actions / Export Controls -->
+    <div class="actions" style="margin-bottom: 20px;">
+      <button id="btnDownloadZip" class="primary">📦 Download All Panels (ZIP)</button>
+      <button id="btnToggleCombined" style="background:#fff; color:var(--ink); border:1px solid var(--line);">Show Combined Multi-Panel Figure</button>
     </div>
 
     <div id="summaryStats"></div>
-    <div id="generatedPanels"></div>
-    <div class="caption-box" id="generatedCaption"></div>
+
+    <!-- Individual Outcome Panels Container -->
+    <h3 style="font-family:'Newsreader',serif; font-size:20px; margin:24px 0 12px 0; color:var(--ink);">Individual Outcome Curves</h3>
+    <div id="individualPanels"></div>
+
+    <!-- Optional Combined Multi-Panel Figure -->
+    <div id="combinedFigureSection" style="display: none; margin-top: 30px; border-top: 2px solid var(--line); padding-top: 20px;">
+      <h3 style="font-family:'Newsreader',serif; font-size:20px; margin-bottom:12px; color:var(--ink);">Combined Multi-Panel Figure</h3>
+      <div class="actions" style="margin-bottom: 14px;">
+        <button id="btnDownloadPNG" class="primary">Download Combined (PNG - 300 DPI)</button>
+        <button id="btnDownloadTIFF" class="primary">Download Combined (TIFF - 300 DPI)</button>
+        <button id="btnDownloadSVG">Download Combined (SVG)</button>
+      </div>
+      <div id="generatedPanels"></div>
+      <div class="caption-box" id="generatedCaption"></div>
+    </div>
   </div>
 
   <canvas id="compositeCanvas" class="canvas-hidden"></canvas>
@@ -570,7 +633,10 @@ btnGenerate.addEventListener('click', async () => {
   tableHtml += `</tbody></table>`;
   statsDiv.innerHTML = tableHtml;
 
-  // Render Publication Multi-Panel Figure
+  // Render Individual Outcome Panels
+  const individualPanelsDiv = document.getElementById('individualPanels');
+  individualPanelsDiv.innerHTML = '<div style="padding:20px; color:var(--muted);">Generating individual Kaplan-Meier panels...</div>';
+
   const panelsDiv = document.getElementById('generatedPanels');
   panelsDiv.className = '';
   panelsDiv.innerHTML = '';
@@ -589,6 +655,35 @@ btnGenerate.addEventListener('click', async () => {
     referenceKey = 'primary';
   }
 
+  // 1. Generate individual panels for every outcome separately
+  const individualPanels = await generateAllIndividualKmSvgs(parsed);
+  window.currentIndividualPanels = individualPanels;
+
+  individualPanelsDiv.innerHTML = '';
+  individualPanels.forEach((panel, idx) => {
+    const outcomeCard = document.createElement('div');
+    outcomeCard.className = 'outcome-panel-card';
+
+    const safeOutcomeName = panel.name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+    const panelPrefix = `${getSafeFilePrefix()}_Panel_${panel.letter}_${safeOutcomeName}`;
+
+    outcomeCard.innerHTML = `
+      <div class="outcome-header">
+        <h4 class="outcome-title">Panel ${panel.letter}: ${panel.name}</h4>
+        <div class="panel-actions">
+          <button class="primary" onclick="downloadSinglePanelPng(${idx}, '${panelPrefix}')">Download PNG (300 DPI)</button>
+          <button class="primary" onclick="downloadSinglePanelTiff(${idx}, '${panelPrefix}')">Download TIFF (300 DPI)</button>
+          <button onclick="downloadSinglePanelSvg(${idx}, '${panelPrefix}')">Download SVG</button>
+        </div>
+      </div>
+      <div class="panel-svg-wrapper">
+        ${panel.svgString}
+      </div>
+    `;
+    individualPanelsDiv.appendChild(outcomeCard);
+  });
+
+  // 2. Generate combined multi-panel figure
   let figureTitleText = '';
   let svgString = '';
 
@@ -599,8 +694,7 @@ btnGenerate.addEventListener('click', async () => {
       : 'Primary Propensity Score-Matched Cohort — 4,822 Matched Pairs';
   } else {
     figureTitleText = `Propensity Score-Matched Cohort (${cohort1Name} vs ${cohort2Name}) — ${matchedPairs} Matched Pairs`;
-    // Dynamically generate publication SVG for this uploaded study
-    svgString = await generateDynamicKmSvg(parsed);
+    svgString = generateCombinedKmSvg(individualPanels);
   }
 
   currentGeneratedSvg = svgString;
@@ -628,7 +722,87 @@ btnGenerate.addEventListener('click', async () => {
   document.getElementById('generatedCard').scrollIntoView({ behavior: 'smooth' });
 });
 
-/* Export Helper: Render High-Resolution Canvas from SVG at 300 DPI */
+/* Toggle Combined Figure Section */
+document.getElementById('btnToggleCombined').addEventListener('click', () => {
+  const sec = document.getElementById('combinedFigureSection');
+  const btn = document.getElementById('btnToggleCombined');
+  if (sec.style.display === 'none') {
+    sec.style.display = 'block';
+    btn.textContent = 'Hide Combined Multi-Panel Figure';
+    sec.scrollIntoView({ behavior: 'smooth' });
+  } else {
+    sec.style.display = 'none';
+    btn.textContent = 'Show Combined Multi-Panel Figure';
+  }
+});
+
+/* Helper: Render Canvas for any single SVG at 300 DPI */
+async function renderSvgToCanvas(svgStr, targetWidth, targetHeight) {
+  const canvas = document.createElement('canvas');
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+  if (!svgStr) return canvas;
+
+  const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svgBlob);
+  const img = new Image();
+
+  await new Promise((resolve) => {
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    img.src = url;
+  });
+
+  return canvas;
+}
+
+/* Single Panel Export Functions */
+window.downloadSinglePanelPng = async function(idx, prefix) {
+  const panel = window.currentIndividualPanels?.[idx];
+  if (!panel) return;
+  // 560 x 391 scaled up 4x for 300 DPI publication quality (2240 x 1564)
+  const canvas = await renderSvgToCanvas(panel.svgString, 2240, 1564);
+  const a = document.createElement('a');
+  a.download = `${prefix}_300DPI.png`;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+};
+
+window.downloadSinglePanelTiff = async function(idx, prefix) {
+  const panel = window.currentIndividualPanels?.[idx];
+  if (!panel) return;
+  const canvas = await renderSvgToCanvas(panel.svgString, 2240, 1564);
+  if (window.downloadTiff) {
+    window.downloadTiff(canvas, `${prefix}_300DPI.tiff`, 300);
+  } else {
+    showError('TIFF export library not available.');
+  }
+};
+
+window.downloadSinglePanelSvg = function(idx, prefix) {
+  const panel = window.currentIndividualPanels?.[idx];
+  if (!panel) return;
+  const blob = new Blob([panel.svgString], { type: 'image/svg+xml;charset=utf-8' });
+  const a = document.createElement('a');
+  a.download = `${prefix}.svg`;
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+
+/* Export Helper: Render High-Resolution Canvas from Combined SVG at 300 DPI */
 async function getHighResFigureCanvas() {
   const canvas = document.createElement('canvas');
   const targetWidth = 3510;
@@ -695,12 +869,12 @@ function getSafeFilePrefix() {
   return `KM_${c1}_vs_${c2}`;
 }
 
-/* Download Handlers */
+/* Download Handlers for Combined Panel */
 document.getElementById('btnDownloadPNG').addEventListener('click', async () => {
   const canvas = await getHighResFigureCanvas();
   const prefix = getSafeFilePrefix();
   const a = document.createElement('a');
-  a.download = `${prefix}_300DPI.png`;
+  a.download = `${prefix}_Combined_300DPI.png`;
   a.href = canvas.toDataURL('image/png');
   a.click();
 });
@@ -709,7 +883,7 @@ document.getElementById('btnDownloadTIFF').addEventListener('click', async () =>
   const canvas = await getHighResFigureCanvas();
   const prefix = getSafeFilePrefix();
   if (window.downloadTiff) {
-    window.downloadTiff(canvas, `${prefix}_300DPI.tiff`, 300);
+    window.downloadTiff(canvas, `${prefix}_Combined_300DPI.tiff`, 300);
   } else {
     showError('TIFF export library not available.');
   }
@@ -724,10 +898,53 @@ document.getElementById('btnDownloadSVG').addEventListener('click', () => {
   const prefix = getSafeFilePrefix();
   const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
   const a = document.createElement('a');
-  a.download = `${prefix}.svg`;
+  a.download = `${prefix}_Combined.svg`;
   a.href = URL.createObjectURL(blob);
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+
+/* Download All Individual Panels as ZIP */
+document.getElementById('btnDownloadZip').addEventListener('click', async () => {
+  if (!window.currentIndividualPanels?.length) {
+    showError('No individual panels available to download.');
+    return;
+  }
+  if (typeof JSZip === 'undefined') {
+    showError('JSZip library is not loaded.');
+    return;
+  }
+
+  const zip = new JSZip();
+  const basePrefix = getSafeFilePrefix();
+  const zipFolder = zip.folder(`${basePrefix}_Panels`);
+
+  for (let idx = 0; idx < window.currentIndividualPanels.length; idx++) {
+    const p = window.currentIndividualPanels[idx];
+    const safeName = p.name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+    const fname = `Panel_${p.letter}_${safeName}`;
+
+    // Add SVG
+    zipFolder.file(`${fname}.svg`, p.svgString);
+
+    // Add 300 DPI PNG
+    const canvas = await renderSvgToCanvas(p.svgString, 2240, 1564);
+    const pngDataUrl = canvas.toDataURL('image/png');
+    const base64Data = pngDataUrl.replace(/^data:image\/png;base64,/, '');
+    zipFolder.file(`${fname}_300DPI.png`, base64Data, { base64: true });
+  }
+
+  // Also include combined SVG if available
+  if (currentGeneratedSvg) {
+    zipFolder.file(`${basePrefix}_Combined.svg`, currentGeneratedSvg);
+  }
+
+  const content = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.download = `${basePrefix}_All_Panels.zip`;
+  a.href = URL.createObjectURL(content);
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
 });
 </script>
 </body>
