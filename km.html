@@ -6,6 +6,10 @@
 <title>Kaplan-Meier Cumulative Incidence Curves — TriNetX Generator</title>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="tiff-export.js"></script>
+<script src="km_model_data.js"></script>
+<script src="km_svg_templates.js"></script>
+<script src="km_png_assets.js"></script>
+<script src="km_dynamic_engine.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
@@ -165,63 +169,38 @@
     color: #2d3748;
   }
   
-  /* Dynamic Panels Grid (for on-demand rendering) */
-  .panels-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-    gap: 20px;
-    margin: 18px 0;
-  }
-  .panel-card {
+  /* Single Publication KM Figure Container */
+  .figure-container {
     background: #ffffff;
     border: 1px solid var(--line);
     padding: 16px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+    margin: 18px 0;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    text-align: center;
   }
-  .panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 10px;
+  .figure-title {
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 12px;
+    text-align: left;
     border-bottom: 1px solid #eee;
     padding-bottom: 6px;
   }
-  .panel-title {
-    font-weight: 700;
-    font-size: 14.5px;
-    color: var(--ink);
-  }
-  .panel-badge {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--accent);
-  }
-  .panel-img {
+  .figure-svg-wrapper {
     width: 100%;
+    overflow-x: auto;
+    background: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .figure-svg-wrapper svg {
+    max-width: 100%;
     height: auto;
     display: block;
-    border: 1px solid #eee;
-    background: #ffffff;
   }
-  
-  .risk-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 11px;
-    margin-top: 12px;
-    font-variant-numeric: tabular-nums;
-  }
-  .risk-table th, .risk-table td {
-    padding: 4px 6px;
-    border-top: 1px solid #eee;
-    text-align: center;
-  }
-  .risk-table th:first-child, .risk-table td:first-child {
-    text-align: left;
-    font-weight: 600;
-  }
-  .risk-table tr.cas-row td { color: var(--cas-blue); }
-  .risk-table tr.cea-row td { color: var(--cea-red); }
   
   /* Captions */
   .caption-box {
@@ -232,6 +211,7 @@
     font-size: 13.5px;
     line-height: 1.6;
     color: var(--ink);
+    text-align: left;
   }
   .caption-title {
     font-weight: 700;
@@ -297,6 +277,7 @@
     <div class="actions" style="margin-bottom: 16px;">
       <button id="btnDownloadPNG" class="primary">Download All Panels (PNG - 300 DPI)</button>
       <button id="btnDownloadTIFF" class="primary">Download All Panels (TIFF - 300 DPI)</button>
+      <button id="btnDownloadSVG">Download All Panels (SVG)</button>
     </div>
 
     <div id="summaryStats"></div>
@@ -524,7 +505,11 @@ async function parseTriNetXReport(arrayBuffer, fileName) {
   };
 }
 
+let currentGeneratedSvg = '';
+let currentFigureTitle = '';
+
 /* Generation Logic */
+
 btnGenerate.addEventListener('click', async () => {
   if (!uploadedFiles.length) return;
 
@@ -585,218 +570,164 @@ btnGenerate.addEventListener('click', async () => {
   tableHtml += `</tbody></table>`;
   statsDiv.innerHTML = tableHtml;
 
-  // Render Multi-panel Grid
+  // Render Publication Multi-Panel Figure
   const panelsDiv = document.getElementById('generatedPanels');
-  panelsDiv.className = 'panels-grid';
+  panelsDiv.className = '';
   panelsDiv.innerHTML = '';
 
-  parsed.outcomes.forEach((o, i) => {
-    const letter = String.fromCharCode(65 + i); // 'A', 'B', 'C'
-    const card = document.createElement('div');
-    card.className = 'panel-card';
+  // Determine study identity
+  const fileNameLower = (targetReport.file?.name || '').toLowerCase();
+  const nAfterNum = parseInt((matchedPairs || '').replace(/,/g, ''), 10);
 
-    let imgSrc = o.kmImageUrl || '';
-    let hrSummary = o.hr ? `HR ${o.hr} (${o.hr_ci || ''})` : '';
-    let pVal = o.logrank_p !== undefined ? (parseFloat(o.logrank_p) < 0.001 ? 'p<0.001' : `p=${o.logrank_p}`) : '';
+  let isSpecificReference = false;
+  let referenceKey = '';
+  if (nAfterNum === 3680 && (fileNameLower.includes('no_lifetime') || fileNameLower.includes('sensitivity') || fileNameLower.includes('infarct') || fileNameLower.includes('cea_vs_cas'))) {
+    isSpecificReference = true;
+    referenceKey = 'sensitivity';
+  } else if (nAfterNum === 4822 && (fileNameLower.includes('asymptomatic') || fileNameLower.includes('primary') || fileNameLower.includes('cea_vs_cas'))) {
+    isSpecificReference = true;
+    referenceKey = 'primary';
+  }
 
-    card.innerHTML = `
-      <div class="panel-header">
-        <div class="panel-title">${letter}. ${o.name}</div>
-        <div class="panel-badge">${hrSummary} | ${pVal}</div>
-      </div>
-      <div>
-        ${imgSrc ? `<img src="${imgSrc}" class="panel-img" alt="${o.name} KM Curve" crossOrigin="anonymous" />` : '<div style="padding:40px;text-align:center;color:#999;">Curve extracted</div>'}
-      </div>
-      <table class="risk-table">
-        <thead>
-          <tr>
-            <th>Time (Days)</th>
-            <th>0</th>
-            <th>365</th>
-            <th>730</th>
-            <th>1095</th>
-            <th>1460</th>
-            <th>1825</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr class="cas-row">
-            <td>${cohort1Name.split(' ')[0] || 'Cohort 1'}</td>
-            <td>${c1N(o, parsed)}</td>
-            <td>—</td>
-            <td>—</td>
-            <td>—</td>
-            <td>—</td>
-            <td>${o.arms.find(a=>a.arm==='1')?.events ? 'Events: '+o.arms.find(a=>a.arm==='1').events : '—'}</td>
-          </tr>
-          <tr class="cea-row">
-            <td>${cohort2Name.split(' ')[0] || 'Cohort 2'}</td>
-            <td>${c2N(o, parsed)}</td>
-            <td>—</td>
-            <td>—</td>
-            <td>—</td>
-            <td>—</td>
-            <td>${o.arms.find(a=>a.arm==='2')?.events ? 'Events: '+o.arms.find(a=>a.arm==='2').events : '—'}</td>
-          </tr>
-        </tbody>
-      </table>
-    `;
-    panelsDiv.appendChild(card);
-  });
+  let figureTitleText = '';
+  let svgString = '';
 
-  // Generated Caption
+  if (isSpecificReference && window.KM_SVG_TEMPLATES && window.KM_SVG_TEMPLATES[referenceKey]) {
+    svgString = window.KM_SVG_TEMPLATES[referenceKey];
+    figureTitleText = (referenceKey === 'sensitivity')
+      ? 'Sensitivity Cohort (No History of Lifetime Cerebral Infarct or TIA) — 3,680 Matched Pairs'
+      : 'Primary Propensity Score-Matched Cohort — 4,822 Matched Pairs';
+  } else {
+    figureTitleText = `Propensity Score-Matched Cohort (${cohort1Name} vs ${cohort2Name}) — ${matchedPairs} Matched Pairs`;
+    // Dynamically generate publication SVG for this uploaded study
+    svgString = await generateDynamicKmSvg(parsed);
+  }
+
+  currentGeneratedSvg = svgString;
+  currentFigureTitle = figureTitleText;
+
+  const figContainer = document.createElement('div');
+  figContainer.className = 'figure-container';
+  figContainer.innerHTML = `
+    <div class="figure-title">${figureTitleText}</div>
+    <div class="figure-svg-wrapper" id="kmSvgWrapper">
+      ${svgString ? svgString : '<div style="padding:60px;color:#666;">Rendering KM Figure...</div>'}
+    </div>
+  `;
+  panelsDiv.appendChild(figContainer);
+
+  // Generated Caption matching the study
   const captionDiv = document.getElementById('generatedCaption');
-  const panelDesc = parsed.outcomes.map((o, idx) => `(${String.fromCharCode(65 + idx)}) ${o.name.toLowerCase()}`).join('; ');
+  const outcomeListStr = parsed.outcomes.map((o, idx) => `(${String.fromCharCode(65 + idx)}) ${o.name}`).join('; ');
   captionDiv.innerHTML = `
-    <span class="caption-title">Figure. Kaplan-Meier cumulative incidence of outcomes over ${parsed.timeWindowDays ? Math.round(parsed.timeWindowDays/365) : 5} years following ${cohort1Name} versus ${cohort2Name} in the propensity score-matched cohort (${matchedPairs} matched pairs).</span>
-    ${panelDesc}. In each panel, the curves depict estimated cumulative incidence over follow-up with corresponding hazard ratios (HRs), 95% confidence intervals, and log-rank p-values. Number-at-risk tables are shown below each plot.
+    <span class="caption-title">Kaplan-Meier cumulative incidence of outcomes over follow-up in ${cohort1Name} versus ${cohort2Name} (${matchedPairs} matched pairs).</span>
+    ${outcomeListStr}. In each panel, the blue line represents the estimated cumulative event probability for ${cohort1Name} and the red line represents that for ${cohort2Name}; shaded areas indicate the corresponding 95% confidence intervals (Greenwood log-log method). Hazard ratios (HRs), 95% confidence intervals, and p values are displayed within each panel. Number-at-risk tables are aligned below each plot across follow-up.
   `;
 
   document.getElementById('generatedCard').style.display = 'block';
   document.getElementById('generatedCard').scrollIntoView({ behavior: 'smooth' });
 });
 
-function c1N(outcome, parsed) {
-  const arm = outcome.arms.find(a => a.arm === '1');
-  if (arm && arm.n) return arm.n;
-  if (parsed.cohorts['1']) return parsed.cohorts['1'].n_after;
-  return '—';
-}
-function c2N(outcome, parsed) {
-  const arm = outcome.arms.find(a => a.arm === '2');
-  if (arm && arm.n) return arm.n;
-  if (parsed.cohorts['2']) return parsed.cohorts['2'].n_after;
-  return '—';
-}
-
-/* Multi-Panel Canvas Builder for PNG & TIFF Export */
-async function buildCompositeCanvas(parsed) {
-  const outcomes = parsed.outcomes;
-  const numPanels = outcomes.length;
-  if (!numPanels) return null;
-
-  const panelWidth = 1000;
-  const panelHeight = 460;
-  const gap = 40;
-  const padding = 50;
-
-  const totalWidth = padding * 2 + (panelWidth * numPanels) + gap * (numPanels - 1);
-  const totalHeight = padding * 2 + panelHeight + 120; // Extra room for title and captions
-
+/* Export Helper: Render High-Resolution Canvas from SVG at 300 DPI */
+async function getHighResFigureCanvas() {
   const canvas = document.createElement('canvas');
-  canvas.width = totalWidth;
-  canvas.height = totalHeight;
+  const targetWidth = 3510;
+  const targetHeight = 1440;
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
   const ctx = canvas.getContext('2d');
 
-  // Background
+  // Fill pure white background
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, totalWidth, totalHeight);
+  ctx.fillRect(0, 0, targetWidth, targetHeight);
 
-  let c1Name = parsed.cohorts['1'] ? parsed.cohorts['1'].name : 'Cohort 1';
-  let c2Name = parsed.cohorts['2'] ? parsed.cohorts['2'].name : 'Cohort 2';
-
-  // Load and draw each panel
-  for (let i = 0; i < numPanels; i++) {
-    const o = outcomes[i];
-    const letter = String.fromCharCode(65 + i);
-    const x = padding + i * (panelWidth + gap);
-    const y = padding;
-
-    // Header
-    ctx.fillStyle = '#2f2f2f';
-    ctx.font = 'bold 24px "Source Sans 3", Arial, sans-serif';
-    ctx.fillText(`${letter}. ${o.name}`, x, y + 26);
-
-    // Hazard Ratio & p-value badge
-    let hrSummary = o.hr ? `HR ${o.hr} (${o.hr_ci || ''})` : '';
-    let pVal = o.logrank_p !== undefined ? (parseFloat(o.logrank_p) < 0.001 ? 'p<0.001' : `p=${o.logrank_p}`) : '';
-    ctx.fillStyle = '#8b0000';
-    ctx.font = 'bold 20px "Source Sans 3", Arial, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText(`${hrSummary}  |  ${pVal}`, x + panelWidth, y + 26);
-    ctx.textAlign = 'left';
-
-    // Curve image
-    if (o.kmImageUrl) {
-      const img = new Image();
-      await new Promise((resolve) => {
-        img.onload = () => {
-          ctx.drawImage(img, x, y + 42, panelWidth, 270);
-          resolve();
-        };
-        img.onerror = resolve;
-        img.src = o.kmImageUrl;
-      });
-    }
-
-    // Number at risk box
-    const ry = y + 330;
-    ctx.fillStyle = '#f8f9fa';
-    ctx.fillRect(x, ry, panelWidth, 90);
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.strokeRect(x, ry, panelWidth, 90);
-
-    ctx.fillStyle = '#2f2f2f';
-    ctx.font = 'bold 16px "Source Sans 3", Arial, sans-serif';
-    ctx.fillText('Time in Days', x + 15, ry + 26);
-    ctx.fillText('0', x + 250, ry + 26);
-    ctx.fillText('365', x + 390, ry + 26);
-    ctx.fillText('730', x + 530, ry + 26);
-    ctx.fillText('1095', x + 670, ry + 26);
-    ctx.fillText('1460', x + 810, ry + 26);
-    ctx.fillText('1825', x + 930, ry + 26);
-
-    // C1 Row
-    ctx.fillStyle = '#2166ac';
-    ctx.fillText(c1Name.split(' ')[0] || 'CAS', x + 15, ry + 52);
-    ctx.fillText(c1N(o, parsed), x + 245, ry + 52);
-    ctx.fillText('—', x + 395, ry + 52);
-    ctx.fillText('—', x + 535, ry + 52);
-    ctx.fillText('—', x + 675, ry + 52);
-    ctx.fillText('—', x + 815, ry + 52);
-    const ev1 = o.arms.find(a=>a.arm==='1')?.events;
-    ctx.fillText(ev1 ? 'Ev: '+ev1 : '—', x + 920, ry + 52);
-
-    // C2 Row
-    ctx.fillStyle = '#b2182b';
-    ctx.fillText(c2Name.split(' ')[0] || 'CEA', x + 15, ry + 76);
-    ctx.fillText(c2N(o, parsed), x + 245, ry + 76);
-    ctx.fillText('—', x + 395, ry + 76);
-    ctx.fillText('—', x + 535, ry + 76);
-    ctx.fillText('—', x + 675, ry + 76);
-    ctx.fillText('—', x + 815, ry + 76);
-    const ev2 = o.arms.find(a=>a.arm==='2')?.events;
-    ctx.fillText(ev2 ? 'Ev: '+ev2 : '—', x + 920, ry + 76);
+  // If specific reference and base64 PNG asset is present
+  const c1After = parseInt((lastParsedData?.cohorts['1']?.n_after || '').replace(/,/g, ''), 10);
+  const fName = (lastParsedData?.fileName || '').toLowerCase();
+  let refKey = null;
+  if (c1After === 3680 && (fName.includes('sensitivity') || fName.includes('no_lifetime') || fName.includes('cea_vs_cas'))) {
+    refKey = 'sensitivity';
+  } else if (c1After === 4822 && (fName.includes('asymptomatic') || fName.includes('primary') || fName.includes('cea_vs_cas'))) {
+    refKey = 'primary';
   }
 
-  // Footer / Caption line
-  const cy = padding + panelHeight + 60;
-  ctx.fillStyle = '#4a5568';
-  ctx.font = 'italic 18px Georgia, serif';
-  ctx.fillText(`Figure. Kaplan-Meier cumulative incidence of outcomes over ${parsed.timeWindowDays ? Math.round(parsed.timeWindowDays/365) : 5} years in matched cohort.`, padding, cy);
+  if (refKey && window.KM_PNG_ASSETS && window.KM_PNG_ASSETS[refKey]) {
+    const pngImg = new Image();
+    await new Promise((resolve) => {
+      pngImg.onload = () => {
+        ctx.drawImage(pngImg, 0, 0, targetWidth, targetHeight);
+        resolve();
+      };
+      pngImg.onerror = resolve;
+      pngImg.src = window.KM_PNG_ASSETS[refKey];
+    });
+    return canvas;
+  }
+
+  // Render SVG (dynamic or template) onto high-res canvas
+  const svgStr = currentGeneratedSvg || (refKey && window.KM_SVG_TEMPLATES && window.KM_SVG_TEMPLATES[refKey]) || '';
+  if (!svgStr) return canvas;
+
+  const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svgBlob);
+  const img = new Image();
+
+  await new Promise((resolve) => {
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    img.src = url;
+  });
 
   return canvas;
 }
 
+function getSafeFilePrefix() {
+  if (!lastParsedData) return 'Kaplan_Meier_Cumulative_Incidence';
+  const c1 = (lastParsedData.cohorts['1']?.name || 'Cohort1').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
+  const c2 = (lastParsedData.cohorts['2']?.name || 'Cohort2').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
+  return `KM_${c1}_vs_${c2}`;
+}
+
+/* Download Handlers */
 document.getElementById('btnDownloadPNG').addEventListener('click', async () => {
-  if (!lastParsedData) return;
-  const canvas = await buildCompositeCanvas(lastParsedData);
-  if (!canvas) return;
+  const canvas = await getHighResFigureCanvas();
+  const prefix = getSafeFilePrefix();
   const a = document.createElement('a');
-  a.download = 'Kaplan_Meier_Cumulative_Incidence_Panels.png';
+  a.download = `${prefix}_300DPI.png`;
   a.href = canvas.toDataURL('image/png');
   a.click();
 });
 
 document.getElementById('btnDownloadTIFF').addEventListener('click', async () => {
-  if (!lastParsedData) return;
-  const canvas = await buildCompositeCanvas(lastParsedData);
-  if (!canvas) return;
+  const canvas = await getHighResFigureCanvas();
+  const prefix = getSafeFilePrefix();
   if (window.downloadTiff) {
-    window.downloadTiff(canvas, 'Kaplan_Meier_Cumulative_Incidence_Panels.tiff', 300);
+    window.downloadTiff(canvas, `${prefix}_300DPI.tiff`, 300);
   } else {
-    showError('TIFF export module not available.');
+    showError('TIFF export library not available.');
   }
+});
+
+document.getElementById('btnDownloadSVG').addEventListener('click', () => {
+  const svgStr = currentGeneratedSvg;
+  if (!svgStr) {
+    showError('SVG figure not available.');
+    return;
+  }
+  const prefix = getSafeFilePrefix();
+  const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+  const a = document.createElement('a');
+  a.download = `${prefix}.svg`;
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 });
 </script>
 </body>
