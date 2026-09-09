@@ -903,7 +903,7 @@ function suppressTable1(rows) {
         var v = vc[0], c = vc[1];
         if (v === null || v > THRESHOLD) return;
         var old = row[c];
-        var newV = String(old).replace(COUNT_RE, "(" + LE + THRESHOLD + ")");
+        var newV = LE + THRESHOLD;
         if (newV !== old) {
           row[c] = newV;
           changes.push({ row: ri, label: row[0], phase: bk.phase,
@@ -1074,7 +1074,7 @@ function verifySuppression(cleanRows, maskedRows, changes) {
         var cvv = _countValue(cv);
         if (cvv !== null && cvv > THRESHOLD && mv !== cv)
           problems.push("row " + ri + " col " + c + ": large count changed " + cv + " -> " + mv);
-        if (JSON.stringify(_pcts(cv)) !== JSON.stringify(_pcts(mv)))
+        if (mv !== (LE + THRESHOLD) && JSON.stringify(_pcts(cv)) !== JSON.stringify(_pcts(mv)))
           problems.push("row " + ri + " col " + c + ": percentage changed " + cv + " -> " + mv);
       });
     });
