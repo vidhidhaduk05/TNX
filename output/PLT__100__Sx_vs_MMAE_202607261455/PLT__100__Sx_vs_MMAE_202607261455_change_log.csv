@@ -1,0 +1,250 @@
+sheet,cell,column_role,old_value,new_value,reason
+Table 1,D28,P-value (Before PSM),0.007,-,either cohort count ≤10 (min=10)
+Table 1,E28,ASD (Before PSM),0.126,-,either cohort count ≤10 (min=10)
+Table 1,B28,Cohort 1 count (Before PSM),2.7% (10),2.7% (≤10),count 10 ≤10
+Table 1,H28,P-value (After PSM),1,-,either cohort count ≤10 (min=10)
+Table 1,I28,ASD (After PSM),<0.001,-,either cohort count ≤10 (min=10)
+Table 1,F28,Cohort 1 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,G28,Cohort 2 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,D29,P-value (Before PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,E29,ASD (Before PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,B29,Cohort 1 count (Before PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,C29,Cohort 2 count (Before PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,H29,P-value (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,I29,ASD (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,F29,Cohort 1 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,G29,Cohort 2 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,D30,P-value (Before PSM),0.005,-,either cohort count ≤10 (min=10)
+Table 1,E30,ASD (Before PSM),0.131,-,either cohort count ≤10 (min=10)
+Table 1,B30,Cohort 1 count (Before PSM),2.7% (10),2.7% (≤10),count 10 ≤10
+Table 1,H30,P-value (After PSM),0.001,-,either cohort count ≤10 (min=0)
+Table 1,I30,ASD (After PSM),0.251,-,either cohort count ≤10 (min=0)
+Table 1,F30,Cohort 1 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,G30,Cohort 2 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,H31,P-value (After PSM),0.824,-,either cohort count ≤10 (min=10)
+Table 1,I31,ASD (After PSM),0.017,-,either cohort count ≤10 (min=10)
+Table 1,G31,Cohort 2 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,D34,P-value (Before PSM),0.164,-,either cohort count ≤10 (min=0)
+Table 1,E34,ASD (Before PSM),0.101,-,either cohort count ≤10 (min=0)
+Table 1,B34,Cohort 1 count (Before PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,C34,Cohort 2 count (Before PSM),0.5% (10),0.5% (≤10),count 10 ≤10
+Table 1,H34,P-value (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,I34,ASD (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,F34,Cohort 1 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,G34,Cohort 2 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,D35,P-value (Before PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,E35,ASD (Before PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,B35,Cohort 1 count (Before PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,C35,Cohort 2 count (Before PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,H35,P-value (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,I35,ASD (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,F35,Cohort 1 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,G35,Cohort 2 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,D36,P-value (Before PSM),0.164,-,either cohort count ≤10 (min=0)
+Table 1,E36,ASD (Before PSM),0.101,-,either cohort count ≤10 (min=0)
+Table 1,B36,Cohort 1 count (Before PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,C36,Cohort 2 count (Before PSM),0.5% (10),0.5% (≤10),count 10 ≤10
+Table 1,H36,P-value (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,I36,ASD (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,F36,Cohort 1 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,G36,Cohort 2 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,D37,P-value (Before PSM),0.164,-,either cohort count ≤10 (min=0)
+Table 1,E37,ASD (Before PSM),0.101,-,either cohort count ≤10 (min=0)
+Table 1,B37,Cohort 1 count (Before PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,C37,Cohort 2 count (Before PSM),0.5% (10),0.5% (≤10),count 10 ≤10
+Table 1,H37,P-value (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,I37,ASD (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,F37,Cohort 1 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,G37,Cohort 2 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,D38,P-value (Before PSM),<0.001,-,either cohort count ≤10 (min=10)
+Table 1,E38,ASD (Before PSM),0.172,-,either cohort count ≤10 (min=10)
+Table 1,B38,Cohort 1 count (Before PSM),2.7% (10),2.7% (≤10),count 10 ≤10
+Table 1,C38,Cohort 2 count (Before PSM),0.5% (10),0.5% (≤10),count 10 ≤10
+Table 1,H38,P-value (After PSM),0.001,-,either cohort count ≤10 (min=0)
+Table 1,I38,ASD (After PSM),0.251,-,either cohort count ≤10 (min=0)
+Table 1,F38,Cohort 1 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,G38,Cohort 2 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,D41,P-value (Before PSM),0.265,-,either cohort count ≤10 (min=10)
+Table 1,E41,ASD (Before PSM),0.059,-,either cohort count ≤10 (min=10)
+Table 1,B41,Cohort 1 count (Before PSM),2.7% (10),2.7% (≤10),count 10 ≤10
+Table 1,H41,P-value (After PSM),1,-,either cohort count ≤10 (min=10)
+Table 1,I41,ASD (After PSM),<0.001,-,either cohort count ≤10 (min=10)
+Table 1,F41,Cohort 1 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,G41,Cohort 2 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,D42,P-value (Before PSM),0.728,-,either cohort count ≤10 (min=10)
+Table 1,E42,ASD (Before PSM),0.019,-,either cohort count ≤10 (min=10)
+Table 1,B42,Cohort 1 count (Before PSM),2.7% (10),2.7% (≤10),count 10 ≤10
+Table 1,H42,P-value (After PSM),1,-,either cohort count ≤10 (min=10)
+Table 1,I42,ASD (After PSM),<0.001,-,either cohort count ≤10 (min=10)
+Table 1,F42,Cohort 1 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,G42,Cohort 2 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,D43,P-value (Before PSM),0.589,-,either cohort count ≤10 (min=10)
+Table 1,E43,ASD (Before PSM),0.029,-,either cohort count ≤10 (min=10)
+Table 1,B43,Cohort 1 count (Before PSM),2.7% (10),2.7% (≤10),count 10 ≤10
+Table 1,H43,P-value (After PSM),0.524,-,either cohort count ≤10 (min=10)
+Table 1,I43,ASD (After PSM),0.050,-,either cohort count ≤10 (min=10)
+Table 1,F43,Cohort 1 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,D45,P-value (Before PSM),0.164,-,either cohort count ≤10 (min=0)
+Table 1,E45,ASD (Before PSM),0.101,-,either cohort count ≤10 (min=0)
+Table 1,B45,Cohort 1 count (Before PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,C45,Cohort 2 count (Before PSM),0.5% (10),0.5% (≤10),count 10 ≤10
+Table 1,H45,P-value (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,I45,ASD (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,F45,Cohort 1 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,G45,Cohort 2 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,D46,P-value (Before PSM),0.202,-,either cohort count ≤10 (min=10)
+Table 1,E46,ASD (Before PSM),0.066,-,either cohort count ≤10 (min=10)
+Table 1,B46,Cohort 1 count (Before PSM),2.7% (10),2.7% (≤10),count 10 ≤10
+Table 1,H46,P-value (After PSM),1,-,either cohort count ≤10 (min=10)
+Table 1,I46,ASD (After PSM),<0.001,-,either cohort count ≤10 (min=10)
+Table 1,F46,Cohort 1 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,G46,Cohort 2 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,D47,P-value (Before PSM),<0.001,-,either cohort count ≤10 (min=10)
+Table 1,E47,ASD (Before PSM),0.172,-,either cohort count ≤10 (min=10)
+Table 1,B47,Cohort 1 count (Before PSM),2.7% (10),2.7% (≤10),count 10 ≤10
+Table 1,C47,Cohort 2 count (Before PSM),0.5% (10),0.5% (≤10),count 10 ≤10
+Table 1,H47,P-value (After PSM),0.001,-,either cohort count ≤10 (min=0)
+Table 1,I47,ASD (After PSM),0.251,-,either cohort count ≤10 (min=0)
+Table 1,F47,Cohort 1 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,G47,Cohort 2 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,H48,P-value (After PSM),0.664,-,either cohort count ≤10 (min=10)
+Table 1,I48,ASD (After PSM),0.034,-,either cohort count ≤10 (min=10)
+Table 1,F48,Cohort 1 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,D49,P-value (Before PSM),<0.001,-,either cohort count ≤10 (min=10)
+Table 1,E49,ASD (Before PSM),0.172,-,either cohort count ≤10 (min=10)
+Table 1,B49,Cohort 1 count (Before PSM),2.7% (10),2.7% (≤10),count 10 ≤10
+Table 1,C49,Cohort 2 count (Before PSM),0.5% (10),0.5% (≤10),count 10 ≤10
+Table 1,H49,P-value (After PSM),1,-,either cohort count ≤10 (min=10)
+Table 1,I49,ASD (After PSM),<0.001,-,either cohort count ≤10 (min=10)
+Table 1,F49,Cohort 1 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,G49,Cohort 2 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,D52,P-value (Before PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,E52,ASD (Before PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,B52,Cohort 1 count (Before PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,C52,Cohort 2 count (Before PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,H52,P-value (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,I52,ASD (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,F52,Cohort 1 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,G52,Cohort 2 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,D53,P-value (Before PSM),<0.001,-,either cohort count ≤10 (min=10)
+Table 1,E53,ASD (Before PSM),0.172,-,either cohort count ≤10 (min=10)
+Table 1,B53,Cohort 1 count (Before PSM),2.7% (10),2.7% (≤10),count 10 ≤10
+Table 1,C53,Cohort 2 count (Before PSM),0.5% (10),0.5% (≤10),count 10 ≤10
+Table 1,H53,P-value (After PSM),1,-,either cohort count ≤10 (min=10)
+Table 1,I53,ASD (After PSM),<0.001,-,either cohort count ≤10 (min=10)
+Table 1,F53,Cohort 1 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,G53,Cohort 2 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,D57,P-value (Before PSM),0.020,-,either cohort count ≤10 (min=10)
+Table 1,E57,ASD (Before PSM),0.112,-,either cohort count ≤10 (min=10)
+Table 1,B57,Cohort 1 count (Before PSM),2.7% (10),2.7% (≤10),count 10 ≤10
+Table 1,H57,P-value (After PSM),1,-,either cohort count ≤10 (min=10)
+Table 1,I57,ASD (After PSM),<0.001,-,either cohort count ≤10 (min=10)
+Table 1,F57,Cohort 1 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,G57,Cohort 2 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,H59,P-value (After PSM),0.824,-,either cohort count ≤10 (min=10)
+Table 1,I59,ASD (After PSM),0.017,-,either cohort count ≤10 (min=10)
+Table 1,G59,Cohort 2 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,D60,P-value (Before PSM),0.164,-,either cohort count ≤10 (min=0)
+Table 1,E60,ASD (Before PSM),0.101,-,either cohort count ≤10 (min=0)
+Table 1,B60,Cohort 1 count (Before PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,C60,Cohort 2 count (Before PSM),0.5% (10),0.5% (≤10),count 10 ≤10
+Table 1,H60,P-value (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,I60,ASD (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,F60,Cohort 1 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,G60,Cohort 2 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,D61,P-value (Before PSM),<0.001,-,either cohort count ≤10 (min=10)
+Table 1,E61,ASD (Before PSM),0.172,-,either cohort count ≤10 (min=10)
+Table 1,B61,Cohort 1 count (Before PSM),2.7% (10),2.7% (≤10),count 10 ≤10
+Table 1,C61,Cohort 2 count (Before PSM),0.5% (10),0.5% (≤10),count 10 ≤10
+Table 1,H61,P-value (After PSM),1,-,either cohort count ≤10 (min=10)
+Table 1,I61,ASD (After PSM),<0.001,-,either cohort count ≤10 (min=10)
+Table 1,F61,Cohort 1 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,G61,Cohort 2 count (After PSM),3.0% (10),3.0% (≤10),count 10 ≤10
+Table 1,D62,P-value (Before PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,E62,ASD (Before PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,B62,Cohort 1 count (Before PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,C62,Cohort 2 count (Before PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,H62,P-value (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,I62,ASD (After PSM),--,-,either cohort count ≤10 (min=0)
+Table 1,F62,Cohort 1 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,G62,Cohort 2 count (After PSM),0% (0),0% (≤10),count 0 ≤10
+Table 1,D65,P-value (Before PSM),<0.001,-,either cohort count ≤10 (min=0)
+Table 1,E65,ASD (Before PSM),0.258,-,either cohort count ≤10 (min=0)
+Table 1,B65,Cohort 1 count (Before PSM),7.7% (0),7.7% (≤10),count 0 ≤10
+Table 1,C65,Cohort 2 count (Before PSM),2.1% (0),2.1% (≤10),count 0 ≤10
+Table 1,H65,P-value (After PSM),0.862,-,either cohort count ≤10 (min=0)
+Table 1,I65,ASD (After PSM),0.014,-,either cohort count ≤10 (min=0)
+Table 1,F65,Cohort 1 count (After PSM),5.2% (0),5.2% (≤10),count 0 ≤10
+Table 1,G65,Cohort 2 count (After PSM),5.5% (0),5.5% (≤10),count 0 ≤10
+Table 1,D66,P-value (Before PSM),<0.001,-,either cohort count ≤10 (min=0)
+Table 1,E66,ASD (Before PSM),0.310,-,either cohort count ≤10 (min=0)
+Table 1,B66,Cohort 1 count (Before PSM),11.1% (0),11.1% (≤10),count 0 ≤10
+Table 1,C66,Cohort 2 count (Before PSM),3.2% (0),3.2% (≤10),count 0 ≤10
+Table 1,H66,P-value (After PSM),0.394,-,either cohort count ≤10 (min=0)
+Table 1,I66,ASD (After PSM),0.067,-,either cohort count ≤10 (min=0)
+Table 1,F66,Cohort 1 count (After PSM),7.3% (0),7.3% (≤10),count 0 ≤10
+Table 1,G66,Cohort 2 count (After PSM),9.1% (0),9.1% (≤10),count 0 ≤10
+Table 1,D67,P-value (Before PSM),<0.001,-,either cohort count ≤10 (min=0)
+Table 1,E67,ASD (Before PSM),0.391,-,either cohort count ≤10 (min=0)
+Table 1,B67,Cohort 1 count (Before PSM),17.5% (0),17.5% (≤10),count 0 ≤10
+Table 1,C67,Cohort 2 count (Before PSM),5.3% (0),5.3% (≤10),count 0 ≤10
+Table 1,H67,P-value (After PSM),0.318,-,either cohort count ≤10 (min=0)
+Table 1,I67,ASD (After PSM),0.078,-,either cohort count ≤10 (min=0)
+Table 1,F67,Cohort 1 count (After PSM),13.1% (0),13.1% (≤10),count 0 ≤10
+Table 1,G67,Cohort 2 count (After PSM),15.9% (0),15.9% (≤10),count 0 ≤10
+Table 1,D68,P-value (Before PSM),<0.001,-,either cohort count ≤10 (min=0)
+Table 1,E68,ASD (Before PSM),0.381,-,either cohort count ≤10 (min=0)
+Table 1,B68,Cohort 1 count (Before PSM),21.0% (0),21.0% (≤10),count 0 ≤10
+Table 1,C68,Cohort 2 count (Before PSM),7.8% (0),7.8% (≤10),count 0 ≤10
+Table 1,H68,P-value (After PSM),0.915,-,either cohort count ≤10 (min=0)
+Table 1,I68,ASD (After PSM),0.008,-,either cohort count ≤10 (min=0)
+Table 1,F68,Cohort 1 count (After PSM),15.9% (0),15.9% (≤10),count 0 ≤10
+Table 1,G68,Cohort 2 count (After PSM),16.2% (0),16.2% (≤10),count 0 ≤10
+Table 1,D69,P-value (Before PSM),<0.001,-,either cohort count ≤10 (min=0)
+Table 1,E69,ASD (Before PSM),0.390,-,either cohort count ≤10 (min=0)
+Table 1,B69,Cohort 1 count (Before PSM),25.5% (0),25.5% (≤10),count 0 ≤10
+Table 1,C69,Cohort 2 count (Before PSM),10.7% (0),10.7% (≤10),count 0 ≤10
+Table 1,H69,P-value (After PSM),1,-,either cohort count ≤10 (min=0)
+Table 1,I69,ASD (After PSM),<0.001,-,either cohort count ≤10 (min=0)
+Table 1,F69,Cohort 1 count (After PSM),20.7% (0),20.7% (≤10),count 0 ≤10
+Table 1,G69,Cohort 2 count (After PSM),20.7% (0),20.7% (≤10),count 0 ≤10
+Table 1,D70,P-value (Before PSM),<0.001,-,either cohort count ≤10 (min=0)
+Table 1,E70,ASD (Before PSM),0.301,-,either cohort count ≤10 (min=0)
+Table 1,B70,Cohort 1 count (Before PSM),26.8% (0),26.8% (≤10),count 0 ≤10
+Table 1,C70,Cohort 2 count (Before PSM),14.7% (0),14.7% (≤10),count 0 ≤10
+Table 1,H70,P-value (After PSM),0.785,-,either cohort count ≤10 (min=0)
+Table 1,I70,ASD (After PSM),0.021,-,either cohort count ≤10 (min=0)
+Table 1,F70,Cohort 1 count (After PSM),24.7% (0),24.7% (≤10),count 0 ≤10
+Table 1,G70,Cohort 2 count (After PSM),23.8% (0),23.8% (≤10),count 0 ≤10
+Table 1,D71,P-value (Before PSM),<0.001,-,either cohort count ≤10 (min=0)
+Table 1,E71,ASD (Before PSM),0.327,-,either cohort count ≤10 (min=0)
+Table 1,B71,Cohort 1 count (Before PSM),34.2% (0),34.2% (≤10),count 0 ≤10
+Table 1,C71,Cohort 2 count (Before PSM),19.9% (0),19.9% (≤10),count 0 ≤10
+Table 1,H71,P-value (After PSM),0.867,-,either cohort count ≤10 (min=0)
+Table 1,I71,ASD (After PSM),0.013,-,either cohort count ≤10 (min=0)
+Table 1,F71,Cohort 1 count (After PSM),31.4% (0),31.4% (≤10),count 0 ≤10
+Table 1,G71,Cohort 2 count (After PSM),32.0% (0),32.0% (≤10),count 0 ≤10
+Table 1,D72,P-value (Before PSM),<0.001,-,either cohort count ≤10 (min=0)
+Table 1,E72,ASD (Before PSM),0.223,-,either cohort count ≤10 (min=0)
+Table 1,B72,Cohort 1 count (Before PSM),37.9% (0),37.9% (≤10),count 0 ≤10
+Table 1,C72,Cohort 2 count (Before PSM),27.5% (0),27.5% (≤10),count 0 ≤10
+Table 1,H72,P-value (After PSM),0.935,-,either cohort count ≤10 (min=0)
+Table 1,I72,ASD (After PSM),0.006,-,either cohort count ≤10 (min=0)
+Table 1,F72,Cohort 1 count (After PSM),34.5% (0),34.5% (≤10),count 0 ≤10
+Table 1,G72,Cohort 2 count (After PSM),34.8% (0),34.8% (≤10),count 0 ≤10
+Table 1,D73,P-value (Before PSM),0.982,-,either cohort count ≤10 (min=0)
+Table 1,E73,ASD (Before PSM),0.001,-,either cohort count ≤10 (min=0)
+Table 1,B73,Cohort 1 count (Before PSM),37.4% (0),37.4% (≤10),count 0 ≤10
+Table 1,C73,Cohort 2 count (Before PSM),37.3% (0),37.3% (≤10),count 0 ≤10
+Table 1,H73,P-value (After PSM),0.684,-,either cohort count ≤10 (min=0)
+Table 1,I73,ASD (After PSM),0.032,-,either cohort count ≤10 (min=0)
+Table 1,F73,Cohort 1 count (After PSM),36.9% (0),36.9% (≤10),count 0 ≤10
+Table 1,G73,Cohort 2 count (After PSM),35.4% (0),35.4% (≤10),count 0 ≤10
+Table 1,D74,P-value (Before PSM),0.453,-,either cohort count ≤10 (min=0)
+Table 1,E74,ASD (Before PSM),0.042,-,either cohort count ≤10 (min=0)
+Table 1,B74,Cohort 1 count (Before PSM),49.6% (0),49.6% (≤10),count 0 ≤10
+Table 1,C74,Cohort 2 count (Before PSM),51.7% (0),51.7% (≤10),count 0 ≤10
+Table 1,H74,P-value (After PSM),0.585,-,either cohort count ≤10 (min=0)
+Table 1,I74,ASD (After PSM),0.043,-,either cohort count ≤10 (min=0)
+Table 1,F74,Cohort 1 count (After PSM),52.1% (0),52.1% (≤10),count 0 ≤10
+Table 1,G74,Cohort 2 count (After PSM),50% (0),50% (≤10),count 0 ≤10
