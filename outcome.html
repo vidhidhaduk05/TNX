@@ -46,6 +46,7 @@
   td input.bad{border-color:var(--err);background:#fff5f5}
   .chk{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
   .chk label{display:flex;gap:6px;align-items:center;font-size:13px;background:var(--paper-dark);border:1px solid var(--line);border-radius:0;padding:5px 12px;cursor:pointer}
+  .chk label.drop-target{border-color:var(--accent);border-style:dashed;box-shadow:inset 0 0 0 1px var(--accent)}
   .msg{font-size:12.5px;margin-top:8px;padding:8px 10px;border-radius:0;display:none}
   .msg.warn{display:block;background:#fff7ec;color:var(--warn);border:1px solid #ffd9a8}
   .msg.err{display:block;background:#fff1f2;color:var(--err);border:1px solid #ffc9d1}
@@ -167,9 +168,19 @@
   <div class="card">
     <h2>5. Charts</h2>
     <div class="row" style="margin-bottom:10px">
+      <div class="field"><span>Chart mode</span>
+        <span class="scheme-radios">
+          <label><input type="radio" name="chartmode" value="peroutcome" checked> Per-outcome</label>
+          <label><input type="radio" name="chartmode" value="combined"> Combined (Figure 1 style)</label>
+        </span>
+      </div>
+      <div class="field" id="periodField" style="display:none"><span>Time period</span>
+        <select id="periodSel" style="padding:6px 8px;border:1px solid var(--line);border-radius:0;background:#fff;color:var(--ink);font-size:13px;min-width:180px"></select>
+      </div>
       <button class="btn" id="render">Render charts</button>
       <button class="btn ghost" id="clear">Clear all</button>
     </div>
+    <div class="hint" id="combinedHint" style="display:none">Combined mode: outcomes on the x-axis for one time period (auto-detected from the report; drag items in section 4 to reorder), two cohort bars per outcome with % labels, P bracket, and HR under each outcome.</div>
     <div class="charts" id="charts"></div>
   </div>
 
@@ -206,8 +217,37 @@ const SCHEMES = {
   blueteal: { c1: '#1f4e78', c2: '#2ba6a4' }
 };
 let customC1 = '#1F8FE5', customC2 = '#FFA500';
-let files = [];            // [{name, days, label, outcomes:{name:{r1,r2,p}}}]
+let files = [];            // [{name, days, label, outcomes:{name:{r1,r2,p,hr,hrLo,hrHi}}}]
 let charts = [];           // Chart.js instances
+
+function escHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ---- chart mode (per-outcome vs combined Figure-1 style) ---- */
+function chartMode(){
+  const el = document.querySelector('input[name=chartmode]:checked');
+  return el ? el.value : 'peroutcome';
+}
+document.querySelectorAll('input[name=chartmode]').forEach(r => {
+  r.addEventListener('change', () => {
+    const combined = chartMode() === 'combined';
+    document.getElementById('periodField').style.display = combined ? 'flex' : 'none';
+    document.getElementById('combinedHint').style.display = combined ? 'block' : 'none';
+  });
+});
+
+function rebuildPeriodSel(){
+  const sel = document.getElementById('periodSel');
+  const prev = sel.value;
+  sel.innerHTML = files.map((f, i) => `<option value="${i}">${escHtml(f.label || ('File ' + (i + 1)))}</option>`).join('');
+  if (files.length) sel.value = (prev !== '' && +prev < files.length) ? prev : '0';
+}
+
+/* outcome order = drag-and-drop order of the items in section 4 */
+function selectedOutcomesOrdered(){
+  return [...document.querySelectorAll('#chkwrap label[draggable]')]
+    .filter(l => l.querySelector('input').checked)
+    .map(l => l.dataset.name);
+}
 
 function getColors() {
   const scheme = document.querySelector('input[name=colorscheme]:checked').value;
@@ -439,7 +479,7 @@ async function parseDocx(fileBuffer, fileName){
         }
 
         if (r1 !== null || r2 !== null) {
-          outcomes[name] = { r1, r2, p };
+          outcomes[name] = { r1, r2, p, hr: null };
         }
       }
 
@@ -463,7 +503,7 @@ async function parseDocx(fileBuffer, fileName){
   const dm = txt.match(/ended (\d+) days after the first occurrence of the index event/);
   if(dm) days = parseInt(dm[1],10);
 
-  const blockRe = /\n(\d+) ([A-Z][^\n]{2,60})\n\nRisk analysis/g;
+  const blockRe = /\n(\d+) ([A-Z][^\n]{2,200})\n\nRisk analysis/g;
   const blocks = [];
   let m;
   while((m = blockRe.exec(txt)) !== null){
@@ -476,7 +516,7 @@ async function parseDocx(fileBuffer, fileName){
     const seg = txt.slice(start, end>0?end:undefined);
 
     const kmIdx = seg.indexOf('Kaplan - Meier survival analysis');
-    let r1=null, r2=null, p=null;
+    let r1=null, r2=null, p=null, hr=null, hrLo=null, hrHi=null;
     if(kmIdx>=0){
       const kmSeg = seg.slice(kmIdx);
       const pcts = [...kmSeg.matchAll(/(\d+(?:\.\d+)?)%/g)].map(x=>parseFloat(x[1]));
@@ -484,7 +524,12 @@ async function parseDocx(fileBuffer, fileName){
       const lm = kmSeg.match(/Log-Rank Test\s*\n[\d.]+\s*\n1\s*\n([\d.]+)/);
       if(lm) p = parseFloat(lm[1]);
     }
-    outcomes[blocks[i].name] = {r1, r2, p};
+    // Hazard Ratio and Proportionality <hr> (<lo>, <hi>)
+    const hrm = seg.match(/Hazard Ratio and Proportionality\s*\n?([\d.]+)\s*\n?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*\)/);
+    if(hrm){ hr = parseFloat(hrm[1]); hrLo = parseFloat(hrm[2]); hrHi = parseFloat(hrm[3]); }
+    const hrStr = (hr!=null && hrLo!=null && hrHi!=null && !isNaN(hr))
+      ? hr.toFixed(2)+' ['+hrLo.toFixed(2)+'-'+hrHi.toFixed(2)+']' : null;
+    outcomes[blocks[i].name] = {r1, r2, p, hr: hrStr};
   }
 
   let compName = "";
@@ -539,6 +584,7 @@ async function handleFiles(list){
   filemsg.className='msg'; filemsg.innerHTML=html;
   rebuildTable();
   rebuildChecks();
+  rebuildPeriodSel();
 }
 
 /* ---------------- table ---------------- */
@@ -554,16 +600,16 @@ function rebuildTable(){
   if(!files.length || !names.length){ wrap.innerHTML='<em style="font-size:13px;color:#6a7280">Upload files to populate the table.</em>'; return; }
   let h='<table><thead><tr><th rowspan="2" style="text-align:left">Outcome</th>';
   files.forEach((f, fi)=>{ 
-    h+=`<th colspan="3"><input type="text" value="${f.label}" data-fi="${fi}" class="hdr-label-input" style="width:90%; font-weight:bold; text-align:center; border:1px solid #ccc; border-radius:3px; padding:2px;"></th>`; 
+    h+=`<th colspan="4"><input type="text" value="${escHtml(f.label)}" data-fi="${fi}" class="hdr-label-input" style="width:90%; font-weight:bold; text-align:center; border:1px solid #ccc; border-radius:3px; padding:2px;"></th>`; 
   });
   h+='</tr><tr>';
-  files.forEach(()=>{ h+='<th>C1 %</th><th>C2 %</th><th>p</th>'; });
+  files.forEach(()=>{ h+='<th>C1 %</th><th>C2 %</th><th>p</th><th>HR [95% CI]</th>'; });
   h+='</tr></thead><tbody>';
   names.forEach(n=>{
-    h+=`<tr><td class="name">${n}</td>`;
+    h+=`<tr><td class="name">${escHtml(n)}</td>`;
     files.forEach((f,fi)=>{
-      const o=f.outcomes[n]||{r1:null,r2:null,p:null};
-      h+=cell(n,fi,'r1',o.r1)+cell(n,fi,'r2',o.r2)+cell(n,fi,'p',o.p);
+      const o=f.outcomes[n]||{r1:null,r2:null,p:null,hr:null};
+      h+=cell(n,fi,'r1',o.r1)+cell(n,fi,'r2',o.r2)+cell(n,fi,'p',o.p)+cell(n,fi,'hr',o.hr);
     });
     h+='</tr>';
   });
@@ -587,20 +633,54 @@ function onCellEdit(e){
   const inp=e.target;
   const name=inp.dataset.name, fi=+inp.dataset.fi, key=inp.dataset.key;
   const raw=inp.value.trim();
+  if(key==='hr'){ // HR stored as a display string, e.g. "0.65 [0.50-0.85]"
+    if(!files[fi].outcomes[name]) files[fi].outcomes[name]={r1:null,r2:null,p:null,hr:null};
+    files[fi].outcomes[name].hr = raw || null;
+    inp.classList.remove('bad');
+    return;
+  }
   let val = raw===''? null : parseFloat(raw);
   if(raw!=='' && isNaN(val)){ inp.classList.add('bad'); return; }
   inp.classList.remove('bad');
-  if(!files[fi].outcomes[name]) files[fi].outcomes[name]={r1:null,r2:null,p:null};
+  if(!files[fi].outcomes[name]) files[fi].outcomes[name]={r1:null,r2:null,p:null,hr:null};
   files[fi].outcomes[name][key]=val;
 }
 
-/* ---------------- outcome checkboxes ---------------- */
+/* ---------------- outcome checkboxes (drag-and-drop ordering) ---------------- */
 function rebuildChecks(){
   const wrap=document.getElementById('chkwrap');
   const names=allOutcomeNames();
   if(!names.length){ wrap.innerHTML='<em style="font-size:13px;color:#6a7280">No outcomes yet.</em>'; return; }
-  wrap.innerHTML = names.map(n=>`<label><input type="checkbox" value="${n}" checked>${n}</label>`).join('');
+  wrap.innerHTML = names.map(n=>`<label draggable="true" data-name="${escHtml(n)}" style="cursor:grab"><input type="checkbox" value="${escHtml(n)}" checked>${escHtml(n)}</label>`).join('');
 }
+/* drag-and-drop: drop order defines the outcome order (x-axis in combined mode) */
+let dragLabel = null;
+chkwrapEl().addEventListener('dragstart', e=>{
+  const lab = e.target.closest('label[draggable]');
+  if(!lab) return;
+  dragLabel = lab;
+  lab.style.opacity = '0.5';
+  e.dataTransfer.effectAllowed = 'move';
+  try{ e.dataTransfer.setData('text/plain', lab.dataset.name); }catch(_){}
+});
+chkwrapEl().addEventListener('dragend', ()=>{
+  if(dragLabel) dragLabel.style.opacity = '';
+  dragLabel = null;
+  [...chkwrapEl().querySelectorAll('label[draggable]')].forEach(l=>l.classList.remove('drop-target'));
+});
+chkwrapEl().addEventListener('dragover', e=>{
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const lab = e.target.closest('label[draggable]');
+  [...chkwrapEl().querySelectorAll('label[draggable]')].forEach(l=>l.classList.toggle('drop-target', l===lab && dragLabel && l!==dragLabel));
+});
+chkwrapEl().addEventListener('drop', e=>{
+  e.preventDefault();
+  const lab = e.target.closest('label[draggable]');
+  if(!lab || !dragLabel) return;
+  if(lab !== dragLabel) chkwrapEl().insertBefore(dragLabel, lab);
+});
+function chkwrapEl(){ return document.getElementById('chkwrap'); }
 
 /* ---------------- chart rendering ---------------- */
 document.getElementById('render').addEventListener('click', renderCharts);
@@ -609,6 +689,7 @@ document.getElementById('clear').addEventListener('click', ()=>{
   document.getElementById('charts').innerHTML='';
   document.getElementById('tablewrap').innerHTML='<em style="font-size:13px;color:#6a7280">Upload files to populate the table.</em>';
   document.getElementById('chkwrap').innerHTML='<em style="font-size:13px;color:#6a7280">No outcomes yet.</em>';
+  document.getElementById('periodSel').innerHTML='';
   filemsg.className='msg'; filemsg.textContent=''; fileInput.value='';
 });
 
@@ -689,15 +770,126 @@ const annotate = {
   }
 };
 
+/* ---------------- combined Figure-1-style chart ----------------
+   Outcomes on the x-axis (one time period), two cohort bars per outcome,
+   % labels, P bracket, and HR [95% CI] under each outcome label. */
+function wrapTickLines(name, hrStr){
+  const words = String(name).split(/\s+/);
+  const lines = [];
+  let cur = '';
+  words.forEach(w=>{
+    if((cur+' '+w).trim().length > 16){ if(cur) lines.push(cur); cur = w; }
+    else cur = (cur ? cur+' ' : '') + w;
+  });
+  if(cur) lines.push(cur);
+  lines.push(hrStr || 'HR n/a');
+  return lines;
+}
+
+function renderCombinedChart(host, lab1, lab2, selected){
+  const sel = document.getElementById('periodSel');
+  const fi = sel.value !== '' ? +sel.value : -1;
+  if(fi < 0 || !files[fi]){ host.innerHTML='<em style="color:#6a7280">Upload a report first.</em>'; return; }
+  const f = files[fi];
+
+  const d1 = selected.map(n=>(f.outcomes[n]||{}).r1);
+  const d2 = selected.map(n=>(f.outcomes[n]||{}).r2);
+  const pv = selected.map(n=>(f.outcomes[n]||{}).p);
+  const hv = selected.map(n=>(f.outcomes[n]||{}).hr || null);
+
+  const box=document.createElement('div'); box.className='chartbox';
+  box.innerHTML=`<h3>${escHtml(f.label)} &mdash; combined outcomes</h3>
+    <div class="canvaswrap" style="height:560px;max-width:960px"><canvas></canvas></div>
+    <div style="display:flex;gap:10px;margin-top:10px;">
+      <button class="btn ghost dl">Download PNG (300 DPI)</button>
+      <button class="btn ghost dl-tiff">Download TIFF (300 DPI)</button>
+    </div>`;
+  host.appendChild(box);
+  const canvas=box.querySelector('canvas');
+
+  const maxv=Math.max(...d1.filter(v=>v!=null), ...d2.filter(v=>v!=null), 0);
+  const { c1: bc1, c2: bc2 } = getColors();
+  const chart=new Chart(canvas, {
+    type:'bar',
+    data:{ labels: selected.map(n=>wrapTickLines(n, (f.outcomes[n]||{}).hr)),
+      datasets:[
+        {label:lab1, data:d1, backgroundColor:bc1, borderColor:bc1, borderWidth:1, barPercentage:0.9, categoryPercentage:0.8},
+        {label:lab2, data:d2, backgroundColor:bc2, borderColor:bc2, borderWidth:1, barPercentage:0.9, categoryPercentage:0.8}
+      ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:34}},
+      scales:{
+        x:{title:{display:true,text:'Outcome',font:{size:12,weight:'bold'},color:'#000'},
+           ticks:{color:'#000', font:{size:10}, maxRotation:0, minRotation:0, autoSkip:false}, grid:{display:false}},
+        y:{title:{display:true,text:'Event Probability Rate (%)',font:{size:12,weight:'bold'},color:'#000'},
+           beginAtZero:true, suggestedMax:maxv*1.35,
+           ticks:{color:'#000'},
+           grid:{color:'#e3e6ea', borderDash:[4,4]}, border:{display:false}}
+      },
+      plugins:{
+        legend:{position:'top', align:'end',
+                labels:{boxWidth:16, boxHeight:16, padding:14, font:{size:12}, color:'#000',
+                        generateLabels(chart){
+                          const base = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                          base.forEach(l=>{ l.borderRadius=2; });
+                          return base;
+                        }},
+                onClick:(e,item,legend)=>Chart.defaults.plugins.legend.onClick(e,item,legend),
+                },
+        title:{display:true, text:['Event Probability Rate by Outcome',
+                 '('+lab1+' vs '+lab2+' \u2014 '+f.label+')'],
+               font:{size:15,weight:'bold'}, color:'#000', padding:{bottom:12}},
+        tooltip:{callbacks:{label:(c)=> c.dataset.label+': '+(c.parsed.y==null?'n/a':c.parsed.y.toFixed(2)+'%')}}
+      }
+    },
+    plugins:[legendBox, annotate]
+  });
+  chart.$pvals=pv;
+  charts.push(chart);
+
+  box.querySelector('.dl').addEventListener('click', ()=>{
+    const a=document.createElement('a');
+    a.download = 'combined_outcomes_'+f.label.replace(/[^a-z0-9]+/gi,'_').toLowerCase()+'_barchart.png';
+    const scale=3.5;
+    const tmp=document.createElement('canvas');
+    tmp.width=canvas.width*scale; tmp.height=canvas.height*scale;
+    const tctx=tmp.getContext('2d');
+    tctx.fillStyle='#fff'; tctx.fillRect(0,0,tmp.width,tmp.height);
+    tctx.scale(scale,scale);
+    tctx.drawImage(canvas,0,0);
+    a.href=tmp.toDataURL('image/png');
+    a.click();
+  });
+
+  box.querySelector('.dl-tiff').addEventListener('click', ()=>{
+    const scale=3.5;
+    const tmp=document.createElement('canvas');
+    tmp.width=canvas.width*scale; tmp.height=canvas.height*scale;
+    const tctx=tmp.getContext('2d');
+    tctx.fillStyle='#fff'; tctx.fillRect(0,0,tmp.width,tmp.height);
+    tctx.scale(scale,scale);
+    tctx.drawImage(canvas,0,0);
+    const fn = 'combined_outcomes_'+f.label.replace(/[^a-z0-9]+/gi,'_').toLowerCase()+'_barchart.tiff';
+    if(window.downloadTiff) {
+      window.downloadTiff(tmp, fn, 300);
+    } else {
+      alert('TIFF exporter module not loaded.');
+    }
+  });
+}
+
 function renderCharts(){
   charts.forEach(c=>c.destroy()); charts=[];
   const host=document.getElementById('charts'); host.innerHTML='';
   const lab1=document.getElementById('lab1').value||'Cohort 1';
   const lab2=document.getElementById('lab2').value||'Cohort 2';
-  const selected=[...document.querySelectorAll('#chkwrap input:checked')].map(x=>x.value);
+  const selected=selectedOutcomesOrdered();
   const labels=files.map(f=>f.label);
   if(!files.length){ host.innerHTML='<em style="color:#6a7280">Upload files first.</em>'; return; }
   if(!selected.length){ host.innerHTML='<em style="color:#6a7280">Select at least one outcome.</em>'; return; }
+
+  if(chartMode()==='combined'){ renderCombinedChart(host, lab1, lab2, selected); return; }
 
   selected.forEach(name=>{
     const d1=files.map(f=>(f.outcomes[name]||{}).r1);

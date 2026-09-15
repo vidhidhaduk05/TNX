@@ -263,11 +263,11 @@ function parseTable1Phase(segment) {
 /* ---------------- outcomes ---------------- */
 function parseOutcomesText(txt) {
   var outcomes = [];
-  var hdrRe = /(?:^|\s)(\d+)\s+([A-Za-z][A-Za-z0-9'\-/:+&()\s]{0,50}?)\s+Risk analysis/g;
+  var hdrRe = /(?:^|\s)(\d+)\s+([A-Za-z][A-Za-z0-9'\-/:+&()\s]{0,200}?)\s+Risk analysis/g;
   var m;
   while ((m = hdrRe.exec(txt)) !== null) {
     var name = m[2].trim();
-    if (name.length > 50 || /\b(Cohort|Follow-up|Patients)\b/i.test(name)) continue;
+    if (name.length > 200 || /\b(Cohort|Follow-up|Patients)\b/i.test(name)) continue;
     outcomes.push({ name: name, start: m.index });
   }
   // dedupe consecutive
@@ -613,250 +613,209 @@ function buildTable2(study) {
   return rows;
 }
 
-/* ---------------- Table S1 ---------------- */
-function _codeTag(system, code) {
-  if (system === "TNX") return "TNX:" + code;
-  if (system === "HL7V3.0:VisitType") return "HL7V3.0:VisitType:" + code;
-  return system + " " + code;
+/* ---------------- Table S1 (report-sourced; parity with scripts/build_study_tables_v2.py) ---------------- */
+var VOCAB_DISPLAY = { ICD10CM: "ICD-10-CM", ICD10PCS: "ICD-10-PCS", CPT: "CPT", HCPCS: "HCPCS", RXNORM: "RxNorm" };
+
+var TERM_RE = /([A-Za-z][A-Za-z0-9 ,\/();\[\]'\-\.]*?)\s*\((UMLS:(?:ICD10CM|ICD10PCS|CPT|HCPCS):[A-Za-z0-9.\-]+|NLM:RXNORM:[0-9]+)\)/g;
+
+/* A named criterion group inside a cohort/index-event definition, e.g.
+   "SDH: The terms in this group occurred on or after Jan 1, 2016 Patients must have: any of the following: ..." */
+var GROUP_RE = /([A-Z][A-Za-z0-9 ]*?):\s*((?:Any instance of|The terms in this group)[^.]*?)\s*Patients (must have|cannot have):\s*(?:any of the following:\s*)?(.*?)(?=(?:[A-Z][A-Za-z0-9 ]*?:\s*(?:Any instance of|The terms in this group))|$)/g;
+
+function _normWs(s) { return String(s || "").replace(/\s+/g, " "); }
+
+function _formatCodeToken(token) {
+  /* 'UMLS:ICD10CM:G35' -> 'ICD-10-CM G35'; 'NLM:RXNORM:2601723' -> 'RxNorm 2601723'. */
+  if (token.indexOf("NLM:RXNORM:") === 0) return "RxNorm " + token.split(":").pop();
+  if (token.indexOf("UMLS:") === 0) {
+    var parts = token.split(":");
+    var voc = parts[1];
+    return (VOCAB_DISPLAY[voc] || voc) + " " + parts[parts.length - 1];
+  }
+  return token;
 }
 
-function _table1CodeSystem(code, section) {
-  if (code === "AI" || code === "A1") return "A1";
-  if (code === "F") return "F";
-  if (code === "M") return "M";
-  if (code === "9020") return "TNX:9020";
-  if (/^\d{4}-\d$/.test(code) || /^CV\d+$/.test(code)) return "TNX:" + code;
-  if (/^[0-9A-Z]{7}$/.test(code)) return "ICD-10-PCS " + code;
-  if (/^[A-Z]\d/.test(code)) return "ICD-10 " + code;
-  if (/^\d+$/.test(code)) return section === "Laboratory" ? ("TNX:" + code) : ("RxNorm " + code);
-  return code;
-}
-
-function _isoDate(s) {
-  var months = { Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06",
-                 Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12" };
-  var m = /([A-Z][a-z]+) (\d{1,2}), (\d{4})/.exec(s);
-  if (!m) return s;
-  return m[3] + "-" + (months[m[1]] || "01") + "-" + ("0" + m[2]).slice(-2);
-}
-
-function _titleCase(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
-
-var SYS_MAP = { ICD10CM: "ICD-10", ICD10PCS: "ICD-10-PCS", RXNORM: "RxNorm",
-                CPT: "CPT", "HL7V3.0:VisitType": "HL7V3.0:VisitType" };
-
-function _appendixTermList(txt, verb) {
-  var out = [];
-  var pat = new RegExp(verb + " (?:any of )?(diagnosis|medication|procedure|lab|demographics) " +
-    "(.*?)(?= (?:must|cannot) have | date constraint | event relationship | Group | Query Criteria | Analysis Setup |$)", "g");
-  var m;
-  while ((m = pat.exec(txt)) !== null) {
-    var kind = m[1], body = m[2];
-    var codes = [];
-    var cre = /((?:UMLS|NLM):\S+?) ([A-Za-z][A-Za-z0-9 ,'\-\/()]*?)(?= (?:or )?(?:medication |diagnosis |procedure |lab )?(?:UMLS|NLM|TNX):|$)/g;
-    var cm;
-    while ((cm = cre.exec(body)) !== null) {
-      var tok = cm[1];
-      var li = tok.lastIndexOf(":");
-      var code = tok.substring(li + 1);
-      var pre = tok.substring(0, li);
-      var sysraw = pre.indexOf(":") >= 0 ? pre.substring(pre.indexOf(":") + 1) : pre;
-      var sysname = SYS_MAP[sysraw] || sysraw;
-      var desc = cm[2].replace(/\s+/g, " ").replace(/[ ,]+$/, "");
-      codes.push([sysname, code, desc]);
-    }
-    if (codes.length) out.push([kind, codes]);
+function _harvestTerms(block) {
+  /* Extract [label, formatted_code] pairs from a report block ('label (TOKEN)' patterns). */
+  var out = [], m;
+  var norm = _normWs(block);
+  TERM_RE.lastIndex = 0;
+  while ((m = TERM_RE.exec(norm)) !== null) {
+    var lbl = m[1].trim().replace(/^(?:or|and)\s+/, "").trim().replace(/[;,. ]+$/, "").trim();
+    if (lbl) out.push([lbl, _formatCodeToken(m[2])]);
   }
   return out;
 }
 
-function _medList(codes) {
-  var items = codes.map(function (c) {
-    return _codeTag(c[0], c[1]);
-  });
-  return "[" + items.join(", ") + "]";
+/* The document carries each appendix twice (compact criteria table, then the
+   verbose "Text Representation"); the verbose copies are the last occurrences. */
+function _verboseAppendices(rawTxt) {
+  var marks = [], re = /Appendix ([ABC])\s*[–\-.:]/g, m;
+  while ((m = re.exec(rawTxt)) !== null) marks.push({ letter: m[1], index: m.index });
+  var last = {};
+  marks.forEach(function (mk) { last[mk.letter] = mk.index; });
+  function slice(start, end) {
+    if (start === null || start === undefined) return "";
+    return rawTxt.substring(start, (end !== null && end !== undefined && end > start) ? end : rawTxt.length);
+  }
+  return { A: slice(last.A, last.B), B: slice(last.B, last.C), C: slice(last.C, null) };
 }
 
-function _outcomeCodes(name, apC) {
-  var esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  var m = new RegExp(esc + " Outcome definition (.*?) Settings for the performed analyses").exec(apC);
-  if (!m) return "";
-  var body = m[1];
-  if (/\bDeceased\b/.test(body)) {
-    var pre = body.split("Deceased")[0];
-    if (pre.slice(-20).indexOf(":") < 0) return "Deceased";
-  }
-  var parts = [];
-  var cre = /((?:UMLS|NLM):\S+?) ((?:Visit: )?[A-Za-z][A-Za-z0-9 ,'\-\/()]*?)(?= (?:Diagnosis|Procedure|Visit|Medication|Lab) (?:UMLS|NLM|TNX):|$)/g;
-  var cm;
-  while ((cm = cre.exec(body)) !== null) {
-    var tok = cm[1];
-    var li = tok.lastIndexOf(":");
-    var code = tok.substring(li + 1);
-    var pre2 = tok.substring(0, li);
-    var sysraw = pre2.indexOf(":") >= 0 ? pre2.substring(pre2.indexOf(":") + 1) : pre2;
-    var sysname = SYS_MAP[sysraw] || sysraw;
-    var desc = cm[2].replace(/\s+/g, " ").replace(/[ ,]+$/, "");
-    desc = desc.replace(/\s*\((includes [^)]+)\)/, ", $1");
-    if (sysname === "HL7V3.0:VisitType") {
-      parts.push("HL7V3.0:VisitType:" + code);
-    } else {
-      parts.push(_codeTag(sysname, code));
-    }
-  }
-  return parts.join("; ");
+function _cohortBlock(text, header, cNum) {
+  var re = new RegExp(header + " " + cNum + ".*?(?=" + header + " " + (cNum + 1) + "|$)", "g");
+  var m = re.exec(text);
+  return m ? m[0] : "";
 }
 
-var MMAE_PCS = ["03VG30Z", "03VG3DZ", "03VG3ZZ"];
-var SURG_PCS = ["00C40ZZ", "00C43ZZ", "00C44ZZ", "00N00ZZ", "00N03ZZ", "00N04ZZ"];
-var SDH_DX = [
-  ["I67.1", "Aneurysm, nonruptured"],
-  ["I62.00", "Unspecified nontraumatic subdural hemorrhage"],
-  ["I62.01", "Nontraumatic acute subdural hemorrhage"],
-  ["I62.02", "Nontraumatic subacute subdural hemorrhage"],
-  ["I62.03", "Nontraumatic chronic subdural hemorrhage"],
-  ["S06.5X0A", "Traumatic subdural hemorrhage without loss of consciousness, initial encounter"],
-  ["S06.5X9A", "Traumatic subdural hemorrhage with loss of consciousness of unspecified duration, initial encounter"]
-];
+function _groupRows(blockText, rowPrefix) {
+  /* One S1 row per named criterion group in a cohort/index-event block. */
+  var rowsOut = [], seen = {}, m;
+  GROUP_RE.lastIndex = 0;
+  while ((m = GROUP_RE.exec(blockText)) !== null) {
+    var gName = m[1].trim(), gRel = m[2].trim(), gReq = m[3].trim();
+    var terms = _harvestTerms(m[4]);
+    if (!terms.length) continue;
+    var codeTxt = gRel + " — Patients " + gReq + ": " +
+      terms.map(function (t) { return t[1] + " (" + t[0] + ")"; }).join("; ");
+    var key = gName + "|" + codeTxt;
+    if (seen[key]) continue;
+    seen[key] = true;
+    rowsOut.push([rowPrefix + " — " + gName, codeTxt]);
+  }
+  return rowsOut;
+}
+
+function _cleanCohortDisplay(queryName) {
+  /* e.g. "cSDH: Standalone MMAE PLT<100k" -> "Standalone MMAE (PLT<100k)" (disease-agnostic). */
+  var clean = String(queryName || "").trim();
+  if (clean.indexOf(":") >= 0) clean = clean.substring(clean.indexOf(":") + 1).trim();
+  var thrStr = "";
+  var mThr = /(PLT\s*[<>=]\s*\d+k?)/i.exec(clean);
+  if (mThr) {
+    thrStr = " (" + mThr[1].trim() + ")";
+    clean = clean.substring(0, mThr.index).trim();
+  }
+  var low = clean.toLowerCase();
+  if (low === "mm alone") clean = "Medical management";
+  else if (low === "sx alone") clean = "Surgery alone";
+  else if (low === "sx + mmae") clean = "Surgery + MMAE";
+  else if (low === "standalone mmae") clean = "Standalone MMAE";
+  return clean + thrStr;
+}
 
 function buildTableS1(study) {
   var rows = [];
   rows.push(["Table S1: Codes used in this study"]);
   rows.push(["Characteristic", "Codes (ICD-10 / ICD-10-PCS / RxNorm / TriNetX)"]);
 
-  var apA = study.appendix ? (study.appendix.A || "") : "";
-  var apC = study.appendix ? (study.appendix.C || "") : "";
   var rawTxt = study.raw_text || "";
+  var vAp = _verboseAppendices(rawTxt);
+  var normA = _normWs(vAp.A);
+  var normB = _normWs(vAp.B);
+  var normC = _normWs(vAp.C);
 
+  // 1. Inclusion
   rows.push(["Inclusion", ""]);
 
   // Age at index
-  var mAge = /Age \(at least (\d+) years/.exec(apA) || /Age at least (\d+)/.exec(rawTxt);
+  var mAge = /Age \(Age\) \(at least (\d+) years/.exec(normA) || /Age \(at least (\d+) years/.exec(normA);
   var minAge = mAge ? mAge[1] : "18";
-  rows.push(["Age at index ≥ " + minAge + " years", "A1 ≥ " + minAge]);
+  rows.push(["Age at index ≥ " + minAge + " years",
+    "TriNetX demographics criterion: Age, at least " + minAge + " years (most recent occurrence)"]);
 
-  // SDH / Primary Diagnosis
-  var c1Txt = apA.split("Query Criteria for Cohort 2")[0] || apA;
-  if (/subdural|SDH/i.test(rawTxt) || /MMAE|Surgery/i.test(rawTxt) || apA.indexOf("I62.03") >= 0) {
-    var sdhCodesStr = SDH_DX.map(function(item) { return "ICD-10 " + item[0]; }).join(", ");
-    rows.push(["Chronic subdural hematoma (SDH) diagnosis (any of)", sdhCodesStr]);
-  } else {
-    var c1Codes = _appendixTermList(c1Txt, "must have");
-    var incDiags = [];
-    c1Codes.forEach(function (kc) { if (kc[0] === "diagnosis") incDiags = incDiags.concat(kc[1]); });
-    var rel = /Any instance of (\w+(?: \w+)?) occurred on or before any instance of (\w+(?: \w+)?)/.exec(c1Txt);
-    var seenInc = {};
-    incDiags.forEach(function (c, idx) {
-      if (seenInc[c[1]]) return;
-      seenInc[c[1]] = true;
-      var label = c[2] ? _titleCase(c[2]) : c[1];
-      if (idx === 0) label += " (index event)";
-      else if (rel) label += " (" + rel[1].toLowerCase() + "), preceding " + rel[2].replace(/_/g, " ").toLowerCase();
-      rows.push([label, _codeTag(c[0], c[1])]);
+  if (normA.indexOf("on or after Jan 1, 2016") >= 0 || normB.indexOf("on or after Jan 1, 2016") >= 0) {
+    rows.push(["Index date window", "Terms occurred on or after Jan 1, 2016"]);
+  }
+
+  // Index-event group definitions per cohort (Appendix B) — generic: works for any
+  // disease area (diagnosis groups, exposure groups, procedure groups).
+  var seenIncl = {};
+  [[1, study.cohort1], [2, study.cohort2]].forEach(function (cc) {
+    var cNum = cc[0];
+    var dispName = _cleanCohortDisplay(cc[1]) || ("Cohort " + cNum);
+    var cBlock = _cohortBlock(normB, "The index event for Cohort", cNum);
+    _groupRows(cBlock, "Cohort " + cNum + " (" + dispName + ") index event").forEach(function (gr) {
+      var prefix = gr[0].split(" — ")[0];
+      var key = prefix + "|" + gr[1];
+      if (seenIncl[key]) return;
+      seenIncl[key] = true;
+      rows.push(gr);
     });
-  }
-
-  // Platelet count / Lab cutoff
-  var thrK = 50, thrVal = "50.00";
-  if (/100k|PLT<100|100\.00|at most 100/i.test(rawTxt) || /PLT.*100/i.test(study.cohort1 || "")) {
-    thrK = 100; thrVal = "100.00";
-  } else if (/50k|PLT<50|50\.00|at most 50/i.test(rawTxt) || /PLT.*50/i.test(study.cohort1 || "")) {
-    thrK = 50; thrVal = "50.00";
-  }
-  var mPlt = /at most ([\d\.]+) 10\*3\/uL/.exec(apA);
-  if (mPlt) {
-    thrVal = parseFloat(mPlt[1]).toFixed(2);
-    thrK = Math.round(parseFloat(mPlt[1]));
-  }
-  rows.push(["Platelet count ≤ " + thrK + " ×10³/µL", "TNX:9020 ≤ " + thrVal + " 10*3/uL"]);
-
-  // Index date
-  var mDate = /occurred on or after ([A-Z][a-z]+ \d{1,2}, \d{4})/.exec(c1Txt);
-  if (mDate) {
-    rows.push(["Index date on or after " + mDate[1], "Encounter date ≥ " + _isoDate(mDate[1])]);
-  } else {
-    rows.push(["Index date on or after Jan 1, 2016", "Encounter date ≥ 2016-01-01"]);
-  }
-
-  // Cohort 1 & Cohort 2
-  var mmaeCodesStr = MMAE_PCS.map(function(c) { return "ICD-10-PCS " + c; }).join(", ");
-  var surgCodesStr = SURG_PCS.map(function(c) { return "ICD-10-PCS " + c; }).join(", ");
-
-  var c1Name = study.cohort1 || "Cohort 1";
-  var c2Name = study.cohort2 || "Cohort 2";
-
-  var c1Kind = "mmae";
-  if (/Sx\s*\+\s*MMAE|Surgery\s*\+\s*MMAE/i.test(c1Name)) c1Kind = "sx_mmae";
-
-  var c2Kind = "surgery";
-  if (/Medical|MM/i.test(c2Name)) c2Kind = "medical";
-
-  if (c1Kind === "sx_mmae") {
-    rows.push(["Cohort 1 — " + c1Name, "Having surgical evacuation [" + surgCodesStr + "] AND MMAE [" + mmaeCodesStr + "]"]);
-  } else if (/MMAE/i.test(c1Name)) {
-    rows.push(["Cohort 1 — " + c1Name, "Having MMAE [" + mmaeCodesStr + "]; NOT having surgical evacuation [" + surgCodesStr + "]"]);
-  } else {
-    var c1CodesList = _appendixTermList(c1Txt, "must have");
-    var c1Meds = [];
-    c1CodesList.forEach(function (kc) { if (kc[0] === "medication") c1Meds = c1Meds.concat(kc[1]); });
-    var grp = /Group \w+ (\w+(?: \w+)?) must have (?:any of )?medication/.exec(c1Txt);
-    var grpName = grp ? grp[1].replace(/_/g, " ") : "the index medication";
-    if (c1Meds.length) {
-      rows.push(["Cohort 1 — " + c1Name, "On " + grpName + " around the index event " + _medList(c1Meds)]);
-    } else {
-      rows.push(["Cohort 1 — " + c1Name, "Cohort 1 criteria met"]);
-    }
-  }
-
-  if (c2Kind === "surgery") {
-    rows.push(["Cohort 2 — " + c2Name, "Having surgical evacuation [" + surgCodesStr + "]; NOT having MMAE [" + mmaeCodesStr + "]"]);
-  } else if (c2Kind === "medical") {
-    rows.push(["Cohort 2 — " + c2Name, "NOT having MMAE [" + mmaeCodesStr + "]; NOT having surgical evacuation [" + surgCodesStr + "] (i.e., medical management)"]);
-  } else {
-    var c2Txt = apA.indexOf("Query Criteria for Cohort 2") >= 0 ? apA.split("Query Criteria for Cohort 2")[1] : "";
-    var c2CodesList = _appendixTermList(c2Txt, "cannot have");
-    var c2Meds = [];
-    c2CodesList.forEach(function (kc) { if (kc[0] === "medication") c2Meds = c2Meds.concat(kc[1]); });
-    var grp2 = /Group \w+ (\w+(?: \w+)?) must have (?:any of )?medication/.exec(c1Txt);
-    var grpName2 = grp2 ? grp2[1].replace(/_/g, " ") : "the index medication";
-    if (c2Meds.length) {
-      rows.push(["Cohort 2 — " + c2Name, "NOT on " + grpName2 + " around the index event " + _medList(c2Meds)]);
-    } else {
-      rows.push(["Cohort 2 — " + c2Name, "Cohort 2 criteria met"]);
-    }
-  }
-
-  for (var k = rows.length - 2; k < rows.length; k++) {
-    if (k >= 0 && rows[k][1]) {
-      rows[k][1] = rows[k][1].replace(/^On On /, "On ").replace(/^NOT on On /, "NOT on ");
-    }
-  }
-
-  // Outcomes
-  rows.push(["Outcomes", ""]);
-  (study.outcomes || []).forEach(function (o) {
-    var oname = o.outcome || "";
-    var key = oname.toLowerCase().replace(/ /g, "").replace(/\+/g, "");
-    if (key === "mortality") {
-      rows.push([oname, "Deceased"]);
-    } else if (key === "surgerymortality") {
-      rows.push([oname, "Any surgical evacuation [" + surgCodesStr + "] OR Deceased"]);
-    } else if (key === "surgery") {
-      rows.push([oname, "Any surgical evacuation [" + surgCodesStr + "]"]);
-    } else {
-      var customCode = _outcomeCodes(oname, apC);
-      rows.push([oname, customCode || "Deceased"]);
-    }
   });
 
-  // Covariates
+  // 2. Exclusions — harvest the actual exclusion term list from the cohort query
+  // criteria (Appendix A, 'Exclusions ... Patients cannot have'), one row per term.
+  rows.push(["Exclusions", ""]);
+  var m20 = /In this analysis, ([\d,]+) patients? in Cohort 1 and ([\d,]+) patients? in Cohort 2 were excluded because they met the index event more than 20 years ago/i.exec(rawTxt);
+  var excl20 = m20 ? (parseInt(m20[1].replace(/,/g, ""), 10) + parseInt(m20[2].replace(/,/g, ""), 10)) : 0;
+  rows.push(["Index event > 20 years prior",
+    "Patients whose index event occurred 20 years or more prior are excluded (" + excl20 + " excluded)"]);
+  var exclTerms = [];
+  for (var ec = 1; ec <= 2 && !exclTerms.length; ec++) {
+    var eBlock = _cohortBlock(normA, "Query Criteria for Cohort", ec);
+    var em, eSeen = {};
+    GROUP_RE.lastIndex = 0;
+    while ((em = GROUP_RE.exec(eBlock)) !== null) {
+      if (em[1].trim().toLowerCase() !== "exclusions") continue;
+      _harvestTerms(em[4]).forEach(function (t) {
+        if (eSeen[t[1]]) return;
+        eSeen[t[1]] = true;
+        exclTerms.push(t);
+      });
+      break;
+    }
+  }
+  exclTerms.forEach(function (t) { rows.push([t[0], t[1]]); });
+
+  // 3. Outcomes — each outcome gets ONLY the codes in its own Appendix C block.
+  rows.push(["Outcomes", ""]);
+  var outcomeNames = (study.outcomes || []).map(function (o) { return o.outcome || ""; });
+  var positions = [];
+  outcomeNames.forEach(function (nm) {
+    var pos = normC.indexOf(nm);
+    if (pos !== -1) positions.push([pos, nm]);
+  });
+  positions.sort(function (a, b) { return a[0] - b[0]; });
+  var matchedNames = {};
+  positions.forEach(function (p) { matchedNames[p[1]] = true; });
+  positions.forEach(function (p, j) {
+    var blockEnd = (j + 1 < positions.length) ? positions[j + 1][0] : normC.length;
+    var block = normC.substring(p[0], blockEnd);
+    var terms = _harvestTerms(block);
+    if (/deceased/i.test(block) && !terms.length) {
+      rows.push([p[1], "TriNetX demographics criterion: Deceased"]);
+      return;
+    }
+    rows.push([p[1], terms.length ? terms.map(function (t) { return t[1] + " (" + t[0] + ")"; }).join("; ")
+                                  : "Defined per TriNetX concept"]);
+  });
+  // Outcomes defined in the report but not located in Appendix C still get a row.
+  outcomeNames.forEach(function (nm) {
+    if (nm && !matchedNames[nm]) rows.push([nm, "Defined per TriNetX concept (see report Outcome Definitions)"]);
+  });
+
+  // 4. Covariates
   rows.push(["Covariates", ""]);
   (study.table1.before || []).forEach(function (sec) {
     sec.rows.forEach(function (r) {
       if (r.kind === "bin") return;
       if (typeof OMIT_CODES !== "undefined" && OMIT_CODES[r.code]) return;
       var label = (typeof LABEL_BY_CODE !== "undefined" && LABEL_BY_CODE[r.code]) || normalizeLabel(r.label, r.code);
-      rows.push([label, _table1CodeSystem(r.code, sec.name)]);
+      var codeStr = "";
+      if (sec.name === "Demographics") {
+        codeStr = (r.code === "AI") ? "TriNetX demographics criterion: Age at Index"
+                                    : ("TriNetX concept " + r.code);
+      } else if (sec.name === "Diagnosis") {
+        codeStr = "ICD-10-CM " + r.code;
+      } else if (sec.name === "Medication") {
+        codeStr = "RxNorm " + r.code;
+      } else if (sec.name === "Laboratory") {
+        codeStr = r.code ? ("TriNetX laboratory value " + r.code)
+                         : ("TriNetX laboratory value (" + r.label + ")");
+      } else {
+        codeStr = r.code;
+      }
+      rows.push([label, codeStr]);
     });
   });
   return rows;
