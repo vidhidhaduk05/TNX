@@ -51,7 +51,7 @@ def verify_study(docx_source: str, clean_xlsx: str, masked_xlsx: str, log_csv: s
                         data['appendix_c_text'] + " " + data['time_window_text'])
     for s in data['table1_sections']:
         for it in s['items']:
-            report_full_text += " " + it['label']
+            report_full_text += " " + it['label'] + " " + it['code']
     for o in data['table2_outcomes']:
         report_full_text += " " + o['name']
     report_full_lower = report_full_text.lower()
@@ -105,6 +105,13 @@ def verify_study(docx_source: str, clean_xlsx: str, masked_xlsx: str, log_csv: s
         bare = c.split(':')[-1]
         bare_s1_codes.add(bare)
 
+    # Also bare codes in human-readable S1 form (e.g. 'ICD-10-CM R53', 'RxNorm 11289',
+    # 'TriNetX laboratory value 9037') emitted by the v2 S1 builder.
+    for m in re.finditer(r'\b(?:ICD-10-CM|ICD-10-PCS|CPT|HCPCS|RxNorm)\s+([A-Za-z0-9_.-]+)', s1_text):
+        bare_s1_codes.add(m.group(1).rstrip('.,;)'))
+    for m in re.finditer(r'\bTriNetX\s+(?:laboratory value|concept)\s*([A-Za-z0-9_.-]+)', s1_text):
+        bare_s1_codes.add(m.group(1).rstrip('.,;)'))
+
     # Harvest all codes from appendices
     app_text = data['appendix_a_text'] + "\n" + data['appendix_b_text'] + "\n" + data['appendix_c_text']
     app_codes = set(re.findall(r'\b(UMLS:(?:ICD10CM|ICD10PCS|CPT|HCPCS):[A-Za-z0-9_.-]+|TNX:[0-9]+|NLM:RXNORM:[0-9]+)', app_text))
@@ -117,15 +124,14 @@ def verify_study(docx_source: str, clean_xlsx: str, masked_xlsx: str, log_csv: s
 
     # Count vocabulary
     vocab_counts = {'ICD-10-CM': 0, 'ICD-10-PCS': 0, 'CPT': 0, 'HCPCS': 0, 'RxNorm': 0, 'TriNetX': 0}
-    # From S1 rows:
+    # From S1 rows (counts raw UMLS tokens and the human-readable v2 forms):
     for r in range(3, ws_s1.max_row + 1):
         code_cell = str(ws_s1.cell(r, 2).value or "")
-        if "ICD10CM" in code_cell:
-            vocab_counts['ICD-10-CM'] += len(re.findall(r'ICD10CM', code_cell))
-        if "ICD10PCS" in code_cell:
-            vocab_counts['ICD-10-PCS'] += len(re.findall(r'ICD10PCS', code_cell))
-        if "RXNORM" in code_cell or "RxNorm" in code_cell:
-            vocab_counts['RxNorm'] += len(re.findall(r'RXNORM', code_cell))
+        vocab_counts['ICD-10-CM'] += len(re.findall(r'ICD10CM|ICD-10-CM', code_cell))
+        vocab_counts['ICD-10-PCS'] += len(re.findall(r'ICD10PCS|ICD-10-PCS', code_cell))
+        vocab_counts['CPT'] += len(re.findall(r'\bCPT\b', code_cell))
+        vocab_counts['HCPCS'] += len(re.findall(r'\bHCPCS\b', code_cell))
+        vocab_counts['RxNorm'] += len(re.findall(r'RXNORM|RxNorm', code_cell))
         if "TNX:" in code_cell or "TriNetX" in code_cell:
             vocab_counts['TriNetX'] += 1
 

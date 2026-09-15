@@ -70,12 +70,77 @@ def clean_label(raw_label: str, sec_name: str) -> str:
     # 3. Lab specific cleanups
     if "Hemoglobin A1c/Hemoglobin.total in Blood" in lbl:
         return "Hemoglobin A1c, %"
-    
-    # Open-ended lab bins
-    lbl = re.sub(r'\b10\s*-\s*0\s*%', '≥10 %', lbl)
-    lbl = re.sub(r'\b50\s*-\s*0\s*kg/m2', '≥50 kg/m²', lbl)
-    
+
+    if sec_name == 'Laboratory':
+        # Open-ended lab bins ('10 - 0 %' -> '≥10 %', '50 - 0 kg/m2' -> '≥50 kg/m²');
+        # all other bin labels stay verbatim from the report (anti-template gate safe).
+        lbl = re.sub(r'\b10\s*-\s*0\s*%', '≥10 %', lbl)
+        lbl = re.sub(r'\b50\s*-\s*0\s*kg/m2', '≥50 kg/m²', lbl)
+
     return lbl
+
+def item_display_label(it: dict, sec_name: str) -> str:
+    """Repair misparsed rows, then apply Section D renames / house-style cleanups."""
+    lbl = it['label']
+    code = it['code']
+    # Laboratory bin rows (e.g. '0 - 5.70 %', '35 - 39.90 kg/m2'): the TriNetX table puts
+    # the bin range where a code would sit, so the parser swaps bin text into 'code' and
+    # the first count into 'label'. Repair by using the bin text as the label.
+    if sec_name == 'Laboratory' and lbl and lbl.replace(',', '').replace('.', '').isdigit():
+        lbl = code
+    return clean_label(lbl, sec_name)
+
+
+VOCAB_DISPLAY = {
+    'ICD10CM': 'ICD-10-CM',
+    'ICD10PCS': 'ICD-10-PCS',
+    'CPT': 'CPT',
+    'HCPCS': 'HCPCS',
+    'RXNORM': 'RxNorm',
+}
+
+TERM_RE = re.compile(
+    r"([A-Za-z][A-Za-z0-9 ,/();\[\]'\-\.]*?)\s*"
+    r"\((UMLS:(?:ICD10CM|ICD10PCS|CPT|HCPCS):[A-Za-z0-9.\-]+|NLM:RXNORM:[0-9]+)\)")
+
+# A named criterion group inside a cohort/index-event definition, e.g.
+# "GLP1: Any instance of GLP1 occurred within 3 months before or up to 1 day after any
+#  instance of Multiple Sclerosis   Patients must have: any of the following: ..."
+GROUP_RE = re.compile(
+    r"([A-Z][A-Za-z0-9 ]*?):\s*"
+    r"((?:Any instance of|The terms in this group)[^.]*?)\s*"
+    r"Patients (must have|cannot have):\s*"
+    r"(?:any of the following:\s*)?"
+    r"(.*?)"
+    r"(?=(?:[A-Z][A-Za-z0-9 ]*?:\s*(?:Any instance of|The terms in this group))|$)",
+    re.DOTALL)
+
+
+def format_code_token(token: str) -> str:
+    """'UMLS:ICD10CM:G35' -> 'ICD-10-CM G35'; 'NLM:RXNORM:2601723' -> 'RxNorm 2601723'."""
+    if token.startswith('NLM:RXNORM:'):
+        return f"RxNorm {token.split(':')[-1]}"
+    if token.startswith('UMLS:'):
+        parts = token.split(':')
+        voc = parts[1]
+        return f"{VOCAB_DISPLAY.get(voc, voc)} {parts[-1]}"
+    return token
+
+
+def harvest_terms(block: str) -> list:
+    """Extract (label, formatted_code) pairs from a report block ('label (TOKEN)' patterns)."""
+    terms = []
+    for m in TERM_RE.finditer(re.sub(r'\s+', ' ', block)):
+        lbl = m.group(1).strip()
+        lbl = re.sub(r'^(?:or|and)\s+', '', lbl).strip().rstrip(';,. ').strip()
+        if lbl:
+            terms.append((lbl, format_code_token(m.group(2))))
+    return terms
+
+
+def norm_text(s: str) -> str:
+    return re.sub(r'\s+', ' ', s or '')
+
 
 def derive_clean_cohort_display(query_name: str) -> str:
     """Derive clean, human-readable display label from TriNetX query name."""
@@ -185,9 +250,8 @@ def build_excel_workbook(data: dict, out_clean_xlsx: str) -> openpyxl.Workbook:
         row_idx += 1
         
         for it in sec['items']:
-            raw_lbl = it['label']
-            disp_lbl = clean_label(raw_lbl, sec_name)
-            
+            disp_lbl = item_display_label(it, sec_name)
+
             b = it['before']
             a = it['after']
             
@@ -281,7 +345,7 @@ def build_excel_workbook(data: dict, out_clean_xlsx: str) -> openpyxl.Workbook:
 
     # R2: Header
     ws_s1.cell(2, 1, 'Characteristic / Criteria').font = bold
-    ws_s1.cell(2, 2, 'Codes (ICD-10-CM / ICD-10-PCS / RxNorm / TriNetX)').font = bold
+    ws_s1.cell(2, 2, 'Codes (ICD-10-CM / ICD-10-PCS / CPT / HCPCS / RxNorm / TriNetX)').font = bold
     ws_s1.cell(2, 1).alignment = left
     ws_s1.cell(2, 2).alignment = left
 
@@ -299,84 +363,92 @@ def build_excel_workbook(data: dict, out_clean_xlsx: str) -> openpyxl.Workbook:
         ws_s1.cell(row_idx, 2).alignment = left_top
         row_idx += 1
 
+    norm_a = norm_text(data['appendix_a_text'])
+    norm_b = norm_text(data['appendix_b_text'])
+    norm_c = norm_text(data['appendix_c_text'])
+
+    def cohort_block(text, header_pattern, c_num):
+        m = re.search(rf"{header_pattern.format(c=c_num)}.*?(?={header_pattern.format(c=c_num + 1)}|$)", text)
+        return m.group(0) if m else ''
+
+    def group_rows(block_text, row_prefix):
+        """Emit one S1 row per named criterion group in a cohort/index-event block."""
+        rows_out = []
+        seen = set()
+        for gm in GROUP_RE.finditer(block_text):
+            g_name = gm.group(1).strip()
+            g_rel = gm.group(2).strip()
+            g_req = gm.group(3).strip()
+            terms = harvest_terms(gm.group(4))
+            if not terms:
+                continue
+            code_txt = f"{g_rel} — Patients {g_req}: " + "; ".join(f"{c} ({l})" for l, c in terms)
+            key = (g_name, code_txt)
+            if key in seen:
+                continue
+            seen.add(key)
+            rows_out.append((f"{row_prefix} — {g_name}", code_txt))
+        return rows_out
+
     # 1. Inclusion
     s1_section("Inclusion")
-    s1_row("Age at index ≥ 18 years", "TriNetX AI (Age at Index) ≥ 18 years")
-    
-    # Harvest inclusion diagnosis from Appendix A/B
-    sdh_matches = re.findall(r'([A-Za-z0-9 ,/-]+?)\s*\((UMLS:ICD10CM:I62\.[0-9]+)\)', data['appendix_b_text'])
-    if sdh_matches:
-        sdh_str = ", ".join(f"{c} ({t.strip()})" for t, c in sdh_matches)
-        s1_row("Chronic subdural hematoma (SDH) diagnosis (any of)", sdh_str)
-    
-    # Harvest Platelet threshold from Appendix B
-    m_plt = re.search(r'Platelets \[#/volume\] in Blood\s*\((TNX:9020)\)\s*\((at most [^)]+)\)', data['appendix_b_text'])
-    if m_plt:
-        s1_row(f"Platelet count threshold ({m_plt.group(2)})", f"{m_plt.group(1)} ({m_plt.group(2)})")
-        
-    # Index date
-    if "on or after Jan 1, 2016" in data['appendix_b_text']:
-        s1_row("Index date window", "Encounter date on or after Jan 1, 2016")
+    s1_row("Age at index ≥ 18 years", "TriNetX demographics criterion: Age, at least 18 years (most recent occurrence)")
+    if "on or after Jan 1, 2016" in norm_a or "on or after Jan 1, 2016" in norm_b:
+        s1_row("Index date window", "Terms occurred on or after Jan 1, 2016")
 
-    # Cohort 1 & Cohort 2 arm definitions with exact event-relationship wording
-    # Extract Surgery and MMAE criteria for Cohort 1 and 2 from Appendix A & B
-    for c_num, c_name in [(1, data['matching_cohort_1']['name']), (2, data['matching_cohort_2']['name'])]:
-        m_cb = re.search(rf'The index event for Cohort {c_num}.*?(?=The index event for Cohort|Appendix|$)', data['appendix_b_text'], re.DOTALL)
-        m_ca = re.search(rf'Query Criteria for Cohort {c_num}.*?(?=Query Criteria for Cohort|Appendix|$)', data['appendix_a_text'], re.DOTALL)
-        c_block = (m_cb.group(0) if m_cb else '') + '\n' + (m_ca.group(0) if m_ca else '')
-            
-        # Check surgery criteria
-        surg_wording = []
-        if "Surgery:" in c_block:
-            m_s = re.search(r'Surgery:\s*(The first instance of Surgery occurred [^\n]+?)\s+Patients (must have|cannot have):\s*any of the following:\s*(.+?)(?=\.\s*[A-Z]|Query Criteria|MMAE:|$)', c_block, re.DOTALL)
-            if m_s:
-                timing = m_s.group(1).strip().rstrip('.')
-                req = m_s.group(2).strip()
-                codes = re.findall(r'UMLS:ICD10PCS:[A-Za-z0-9]+', m_s.group(3))
-                surg_wording.append(f"Surgery ({timing}): Patients {req} [{', '.join(sorted(list(set(codes))))}]")
-            else:
-                codes = re.findall(r'UMLS:ICD10PCS:00[A-Za-z0-9]+', c_block)
-                req = "cannot have" if "cannot have" in c_block else "must have"
-                surg_wording.append(f"Surgery: Patients {req} [{', '.join(sorted(list(set(codes))))}]")
-                
-        # Check MMAE criteria
-        mmae_wording = []
-        if "MMAE:" in c_block:
-            m_m = re.search(r'MMAE:\s*(The first instance of MMAE occurred [^\n]+?)\s+Patients (must have|cannot have):\s*any of the following:\s*(.+?)(?=\.\s*[A-Z]|Query Criteria|Surgery:|$)', c_block, re.DOTALL)
-            if m_m:
-                timing = m_m.group(1).strip().rstrip('.')
-                req = m_m.group(2).strip()
-                codes = re.findall(r'UMLS:ICD10PCS:[A-Za-z0-9]+', m_m.group(3))
-                mmae_wording.append(f"MMAE ({timing}): Patients {req} [{', '.join(sorted(list(set(codes))))}]")
-            else:
-                codes = re.findall(r'UMLS:ICD10PCS:03[A-Za-z0-9]+', c_block)
-                req = "cannot have" if "cannot have" in c_block else "must have"
-                mmae_wording.append(f"MMAE: Patients {req} [{', '.join(sorted(list(set(codes))))}]")
-                
+    # Index-event group definitions per cohort (Appendix B) — generic: works for any
+    # disease area (diagnosis groups, exposure groups, procedure groups).
+    seen_incl = set()
+    for c_num in (1, 2):
+        c_block = cohort_block(norm_b, "The index event for Cohort {c}", c_num)
         disp_name = c1_display if c_num == 1 else c2_display
-        arm_def = "; ".join(surg_wording + mmae_wording)
-        s1_row(f"Cohort {c_num} Arm Definition — {disp_name}", arm_def)
+        for char_txt, code_txt in group_rows(c_block, f"Cohort {c_num} ({disp_name}) index event"):
+            # dedupe identical group definitions across cohorts (e.g. shared diagnosis)
+            if (char_txt.split(' — ')[0], code_txt) in seen_incl:
+                continue
+            seen_incl.add((char_txt.split(' — ')[0], code_txt))
+            s1_row(char_txt, code_txt)
 
-    # 2. Exclusions (REQUIRED whenever report defines exclusion criteria)
+    # 2. Exclusions — harvest the actual exclusion term list from the cohort query
+    # criteria (Appendix A, 'Exclusions ... Patients cannot have'), one row per term.
     s1_section("Exclusions")
-    s1_row("Index event > 20 years prior", "Patients whose index event occurred 20 years or more prior are excluded (0 excluded)")
-    if "cannot have" in data['appendix_b_text'] or "cannot have" in data['appendix_a_text']:
-        s1_row("Prior procedure exclusions", "Procedural arm exclusions as specified in cohort-arm definitions above ('cannot have')")
+    s1_row("Index event > 20 years prior",
+           "Patients whose index event occurred 20 years or more prior are excluded "
+           f"({data.get('excluded_20y', 0)} excluded)")
+    excl_terms = []
+    for c_num in (1, 2):
+        c_block = cohort_block(norm_a, "Query Criteria for Cohort {c}", c_num)
+        for gm in GROUP_RE.finditer(c_block):
+            if gm.group(1).strip().lower() == 'exclusions':
+                excl_terms = harvest_terms(gm.group(4))
+                break
+        if excl_terms:
+            break
+    for lbl, code_txt in excl_terms:
+        s1_row(lbl, code_txt)
 
-    # 3. Outcomes
+    # 3. Outcomes — each outcome gets ONLY the codes in its own Appendix C block.
     s1_section("Outcomes")
+    outcome_names = [o['name'] for o in data['table2_outcomes']]
+    positions = []
+    for nm in outcome_names:
+        pos = norm_c.find(nm)
+        if pos != -1:
+            positions.append((pos, nm))
+    positions.sort()
+    matched_names = {nm for _, nm in positions}
+    for j, (pos, nm) in enumerate(positions):
+        block_end = positions[j + 1][0] if j + 1 < len(positions) else len(norm_c)
+        block = norm_c[pos:block_end]
+        if 'deceased' in block.lower() and not harvest_terms(block):
+            s1_row(nm, "TriNetX demographics criterion: Deceased")
+            continue
+        terms = harvest_terms(block)
+        s1_row(nm, "; ".join(f"{c} ({l})" for l, c in terms) if terms else "Defined per TriNetX concept")
+    # Outcomes defined in the report but not located in Appendix C still get a row.
     for o in data['table2_outcomes']:
-        oname = o['name']
-        if oname.lower() == 'mortality':
-            s1_row("Mortality", "TriNetX Vital Status (Deceased)")
-        elif oname.lower() == 'surgery':
-            # Extract surgery codes from Appendix C
-            m_surg_out = re.findall(r'UMLS:ICD10PCS:[A-Za-z0-9]+', data['appendix_c_text'])
-            s1_row("Surgery", ", ".join(sorted(list(set(m_surg_out)))))
-        else:
-            # General outcome search in appendix C
-            m_codes = re.findall(r'UMLS:[A-Za-z0-9]+:[A-Za-z0-9]+|NLM:RXNORM:[0-9]+|TNX:[0-9]+', data['appendix_c_text'])
-            s1_row(oname, ", ".join(sorted(list(set(m_codes)))) if m_codes else "Defined per TriNetX concept")
+        if o['name'] not in matched_names:
+            s1_row(o['name'], "Defined per TriNetX concept (see report Outcome Definitions)")
 
     # 4. Covariates
     s1_section("Covariates")
@@ -384,22 +456,28 @@ def build_excel_workbook(data: dict, out_clean_xlsx: str) -> openpyxl.Workbook:
         sec_name = sec['name']
         for it in sec['items']:
             raw_lbl = it['label']
-            disp_lbl = clean_label(raw_lbl, sec_name)
+            # skip misparsed laboratory bin rows (ranges belong to the parent lab concept)
+            if sec_name == 'Laboratory' and raw_lbl and raw_lbl.replace(',', '').replace('.', '').isdigit():
+                continue
+            disp_lbl = item_display_label(it, sec_name)
             code = it['code']
-            
+
             code_str = ""
             if sec_name == 'Demographics':
-                code_str = f"TriNetX {code}"
+                if code == 'AI':
+                    code_str = "TriNetX demographics criterion: Age at Index"
+                else:
+                    code_str = f"TriNetX concept {code}"
             elif sec_name == 'Diagnosis':
-                code_str = f"UMLS:ICD10CM:{code}"
+                code_str = f"ICD-10-CM {code}"
             elif sec_name == 'Medication':
-                code_str = f"NLM:RXNORM:{code}"
+                code_str = f"RxNorm {code}"
             elif sec_name == 'Laboratory':
                 if code:
-                    code_str = f"TNX:{code}"
+                    code_str = f"TriNetX laboratory value {code}"
                 else:
-                    code_str = f"TNX:9020 ({raw_lbl})"
-                    
+                    code_str = f"TriNetX laboratory value ({raw_lbl})"
+
             s1_row(disp_lbl, code_str)
 
     widths_s1 = {'A': 45.0, 'B': 95.0}
