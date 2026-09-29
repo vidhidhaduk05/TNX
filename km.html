@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TriNetX KM Curves</title>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="tiff-export.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+
+  .outcomes-list { border: 1px solid var(--line); padding: 8px; max-height: 300px; overflow-y: auto; background: #fafcff; }
+  .sel-item { display: flex; align-items: center; padding: 6px 8px; border-bottom: 1px solid #eee; background: #fff; cursor: default; }
+  .sel-item.dragging { opacity: 0.5; background: #eef; }
+  .sel-item:last-child { border-bottom: none; }
+  .sel-item input { margin-right: 10px; }
+  :root{
+    --paper:#f9f7f1; --paper-dark:#eae6da; --ink:#2f2f2f; --muted:#5a5a5a;
+    --line:#c4c0b6; --rule:#2f2f2f; --accent:#8b0000;
+    --c1:#1F8FE5; --c2:#FFA500; --bg:#ffffff;
+    --ok:#1a7f37; --warn:#b25e09; --err:#8b0000;
+  }
+  *{box-sizing:border-box}
+  body{font-family:"Source Sans 3",system-ui,sans-serif;color:var(--ink);margin:0;background:var(--paper)}
+  header{background:var(--paper);color:var(--ink);padding:18px 20px;border-bottom:2px solid var(--rule)}
+  header h1{font-family:"Newsreader",Georgia,serif;font-size:22px;margin:0;font-weight:700;color:var(--ink)}
+  header p{margin:4px 0 0;font-family:"Merriweather",Georgia,serif;font-style:italic;font-size:12px;color:var(--muted)}
+  main{max-width:1180px;margin:0 auto;padding:18px 20px 60px}
+  .card{background:var(--bg);border:1px solid var(--line);border-radius:0;padding:16px 18px;margin:14px 0;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .card h2{font-family:"Source Sans 3",sans-serif;font-size:14px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink);font-weight:700;border-bottom:1px solid var(--line);padding-bottom:4px}
+  .drop{display:block;width:100%;position:relative;box-sizing:border-box;border:2px dashed var(--rule);border-radius:0;padding:26px 20px;text-align:center;color:var(--muted);background:#fdfcf9;cursor:pointer;transition:background .15s,border-color .15s}
+  .drop:hover,.drop.drag{background:var(--paper-dark);border-color:var(--accent)}
+  input[type=file]{display:none !important}
+  .row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+  .field{display:flex;flex-direction:column;gap:4px;font-size:12px;font-family:"Source Sans 3",sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .field input[type=text]{padding:6px 8px;border:1px solid var(--line);border-radius:0;font-size:13px;min-width:180px;background:#fff;color:var(--ink)}
+  .field input[type=text]:focus{border-color:var(--accent);outline:none}
+  .btn{background:var(--ink);color:var(--paper);border:1px solid var(--ink);border-radius:0;padding:8px 14px;font-family:"Source Sans 3",sans-serif;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;cursor:pointer}
+  .btn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--rule)}
+  .btn.ghost:hover{background:var(--paper-dark);color:var(--accent)}
+  .btn:disabled{opacity:.5;cursor:default}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:6px}
+  th,td{border:1px solid var(--line);padding:5px 7px;text-align:center}
+  th{background:var(--paper-dark);font-weight:600}
+  td.name{text-align:left;font-weight:600}
+  td input{width:64px;padding:3px 4px;border:1px solid transparent;border-radius:0;text-align:center;font-size:12.5px;background:transparent;color:var(--ink)}
+  td input:focus{border-color:var(--accent);background:#fff;outline:none}
+  td input.bad{border-color:var(--err);background:#fff5f5}
+  .chk{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+  .chk label{display:flex;gap:6px;align-items:center;font-size:13px;background:var(--paper-dark);border:1px solid var(--line);border-radius:0;padding:5px 12px;cursor:pointer}
+  .chk label.drop-target{border-color:var(--accent);border-style:dashed;box-shadow:inset 0 0 0 1px var(--accent)}
+  .msg{font-size:12.5px;margin-top:8px;padding:8px 10px;border-radius:0;display:none}
+  .msg.warn{display:block;background:#fff7ec;color:var(--warn);border:1px solid #ffd9a8}
+  .msg.err{display:block;background:#fff1f2;color:var(--err);border:1px solid #ffc9d1}
+  .msg.ok{display:block;background:#eefaf0;color:var(--ok);border:1px solid #bfe6c8}
+  .charts{display:grid;grid-template-columns:1fr;gap:18px}
+  .chartbox{background:#fff;border:1px solid var(--line);border-radius:0;padding:14px}
+  .chartbox h3{font-family:"Newsreader",Georgia,serif;font-size:15px;margin:0 0 8px;font-weight:700}
+  .canvaswrap{position:relative;height:500px;max-width:755px;margin:0 auto}
+  .dl{margin-top:10px}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px;font-family:"Merriweather",Georgia,serif;font-style:italic}
+  .legend{display:flex;gap:18px;font-size:12.5px;margin:2px 0 0}
+  .sw{display:inline-block;width:12px;height:12px;border-radius:0;margin-right:6px;vertical-align:middle}
+
+  /* ---- color scheme selector ---- */
+  .colorscheme{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+  .colorscheme-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;color:var(--ink)}
+  .scheme-radios{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+  .scheme-radios label{display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer;color:var(--ink)}
+  .scheme-radios input[type=radio]{accent-color:var(--accent);cursor:pointer}
+  .scheme-swatches{display:inline-flex;gap:4px;margin-left:4px}
+  .scheme-swatches .sw{width:14px;height:14px;border:1px solid rgba(0,0,0,.12)}
+  .custom-colors{display:none;margin-top:10px;gap:14px;align-items:center}
+  .custom-colors.visible{display:flex}
+  .custom-swatch-btn{display:flex;align-items:center;gap:8px;cursor:pointer;background:none;border:none;padding:0;font-family:inherit;font-size:13px;color:var(--ink)}
+  .custom-swatch-btn .sw{width:28px;height:28px;border:2px solid var(--line);border-radius:4px;cursor:pointer;transition:border-color .15s}
+  .custom-swatch-btn:hover .sw{border-color:var(--accent)}
+  .custom-swatch-btn .sw-label{font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.04em}
+
+  /* ---- color picker popup ---- */
+  .cp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:999;display:none;align-items:center;justify-content:center}
+  .cp-overlay.open{display:flex}
+  .cp-popup{background:#fff;border:1px solid var(--line);border-radius:8px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.18);width:280px;user-select:none}
+  .cp-popup-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;color:var(--ink);display:flex;justify-content:space-between;align-items:center}
+  .cp-close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);padding:0;line-height:1}
+  .cp-close:hover{color:var(--accent)}
+  .cp-preview{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .cp-preview-swatch{width:40px;height:40px;border-radius:6px;border:1px solid rgba(0,0,0,.12)}
+  .cp-hex{font-family:"Source Sans 3",monospace;font-size:14px;font-weight:600;color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:4px 8px;width:90px;text-transform:uppercase}
+  .cp-hex:focus{border-color:var(--accent);outline:none}
+  .cp-sv-panel{position:relative;width:100%;height:180px;border-radius:6px;cursor:crosshair;margin-bottom:12px;overflow:hidden}
+  .cp-sv-panel .cp-sv-thumb{position:absolute;width:18px;height:18px;border:3px solid #fff;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,.3);transform:translate(-50%,-50%);pointer-events:none}
+  .cp-hue-slider{position:relative;width:100%;height:16px;border-radius:8px;cursor:pointer;margin-bottom:14px}
+  .cp-hue-slider .cp-hue-thumb{position:absolute;width:20px;height:20px;border:3px solid #fff;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,.3);transform:translate(-50%,-50%);top:50%;pointer-events:none}
+  .cp-actions{display:flex;gap:8px;justify-content:flex-end}
+  .cp-actions button{padding:6px 16px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;border-radius:4px;cursor:pointer;font-family:"Source Sans 3",sans-serif}
+  .cp-apply{background:var(--ink);color:#fff;border:1px solid var(--ink)}
+  .cp-apply:hover{background:var(--accent);border-color:var(--accent)}
+  .cp-cancel{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .cp-cancel:hover{background:var(--paper-dark)}
+</style>
+</head>
+<body>
+<header>
+  <h1>TriNetX Compare-Outcomes &rarr; Grouped Bar Charts</h1>
+  <p>Upload one report .docx per follow-up window. Event probability rate = 100 &minus; KM survival at end of window. Nothing leaves your browser.</p>
+</header>
+<main>
+
+  <div class="card">
+    <h2>1. Upload Data</h2>
+    <label class="drop" id="filedrop">
+      <strong>Click to browse</strong> or drag TriNetX Word export (.docx) here
+      <input type="file" id="file" accept=".docx">
+    </label>
+    <div id="filemsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. Select & Order Outcomes</h2>
+    <div class="hint">Check the outcomes you want to include in the combined KM curve figure. Drag the <span style="color:#ccc">&#9776;</span> icon to reorder them vertically (A, B, C...).</div>
+    <div class="outcomes-list" id="outsel"></div>
+  </div>
+
+  <div class="card">
+    <h2>3. Generate</h2>
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn" id="renderBtn" disabled>Render combined curves</button>
+      <button class="btn ghost" id="clearBtn" disabled>Clear</button>
+    </div>
+    <div class="charts" id="charts"></div>
+  </div>
+</main>
+
+
+<div class="cp-overlay" id="cpOverlay">
+  <div class="cp-popup">
+    <div class="cp-popup-title">
+      <span id="cpTitle">Select color</span>
+      <button class="cp-close" id="cpClose" type="button">&times;</button>
+    </div>
+    <div class="cp-preview">
+      <div class="cp-preview-swatch" id="cpPreview"></div>
+      <input type="text" class="cp-hex" id="cpHex" maxlength="7" spellcheck="false">
+    </div>
+    <div class="cp-sv-panel" id="cpSvPanel">
+      <div class="cp-sv-thumb" id="cpSvThumb"></div>
+    </div>
+    <div class="cp-hue-slider" id="cpHueSlider">
+      <div class="cp-hue-thumb" id="cpHueThumb"></div>
+    </div>
+    <div class="cp-actions">
+      <button class="cp-cancel" id="cpCancel" type="button">Cancel</button>
+      <button class="cp-apply" id="cpApply" type="button">Apply</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- KM Curves Logic ---
+const files = [];
+
+async function parseDocxForKM(fileBuffer, fileName) {
+  const zip = await JSZip.loadAsync(fileBuffer);
+
+  const relsFile = zip.file('word/_rels/document.xml.rels');
+  let relsMap = {};
+  if (relsFile) {
+      let relsXml = await relsFile.async('string');
+      let matches = relsXml.matchAll(/Id="(rId\d+)".*?Target="([^"]+)"/ig);
+      for (const m of matches) {
+          relsMap[m[1]] = m[2];
+      }
+  }
+
+  const xmlFile = zip.file('word/document.xml');
+  if(!xmlFile) throw new Error('Not a Word document');
+  let xml = await xmlFile.async('string');
+  let paragraphs = xml.match(/<w:p(?:\s|>).*?<\/w:p>/gs) || [];
+
+  let currentOutcome = null;
+  let inKmSection = false;
+  let kmImages = {};
+
+  for(const p of paragraphs) {
+      let plain = p.replace(/<[^>]+>/g, '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
+
+      let m = plain.match(/^(?:\d+)\s+([A-Za-z][A-Za-z0-9'\-/:+&()\s]{0,200}?)$/);
+      if (m && !m[1].includes("Risk analysis") && !m[1].includes("Patients") && !m[1].includes("Cohort")) {
+         currentOutcome = m[1].trim();
+         inKmSection = false;
+      }
+
+      if (plain.includes("Kaplan - Meier survival analysis")) {
+          inKmSection = true;
+      }
+
+      let imgMatch = p.match(/<a:blip[^>]+r:embed="(rId\d+)"/i);
+      if (imgMatch) {
+          let rId = imgMatch[1];
+          let imgPath = 'word/' + relsMap[rId];
+          if (currentOutcome && inKmSection) {
+              const imgFile = zip.file(imgPath);
+              if (imgFile) {
+                  const base64 = await imgFile.async('base64');
+                  kmImages[currentOutcome] = 'data:image/png;base64,' + base64;
+              }
+              inKmSection = false;
+          }
+      }
+  }
+
+  return { label: fileName.replace('.docx',''), outcomes: kmImages };
+}
+
+// UI Elements
+const filebtn = document.getElementById('file');
+const filedrop = document.getElementById('filedrop');
+const filemsg = document.getElementById('filemsg');
+const outsel = document.getElementById('outsel');
+const renderBtn = document.getElementById('renderBtn');
+const clearBtn = document.getElementById('clearBtn');
+const host = document.getElementById('charts');
+
+filebtn.addEventListener('change', e => { if(e.target.files.length) handleFiles(Array.from(e.target.files)); });
+filedrop.addEventListener('dragover', e => { e.preventDefault(); filedrop.classList.add('drag'); });
+filedrop.addEventListener('dragleave', () => filedrop.classList.remove('drag'));
+filedrop.addEventListener('drop', e => {
+  e.preventDefault(); filedrop.classList.remove('drag');
+  if(e.dataTransfer.files.length) handleFiles(Array.from(e.dataTransfer.files));
+});
+filedrop.addEventListener('click', () => filebtn.click());
+
+async function handleFiles(list){
+  filemsg.className='msg'; filemsg.textContent='';
+  const added=[], skipped=[];
+  for(const f of list){
+    if(!f.name.toLowerCase().endsWith('.docx')){ skipped.push(f.name+' (not .docx)'); continue; }
+    try{
+      const buf = await f.arrayBuffer();
+      const ds = await parseDocxForKM(buf, f.name);
+      files.push({name: f.name, label: ds.label, outcomes: ds.outcomes});
+      added.push(ds.label);
+    }catch(err){ skipped.push(f.name+' ('+err.message+')'); }
+  }
+  let html='';
+  if(added.length) html += '<div class="msg ok">Loaded: '+added.join('; ')+'</div>';
+  if(skipped.length) html += '<div class="msg err">Skipped: '+skipped.join('; ')+'</div>';
+  filemsg.innerHTML = html;
+
+  if (files.length > 1) {
+      // For now just take the first file's outcomes since we're just combining them for a specific report
+      filemsg.innerHTML += '<div class="msg warn">Warning: Multiple files uploaded. Displaying outcomes from the first file. Please only upload 1 report at a time to combine its KM curves.</div>';
+  }
+  buildOutcomeList();
+}
+
+clearBtn.addEventListener('click', () => {
+  files.length=0;
+  filemsg.innerHTML='';
+  outsel.innerHTML='';
+  host.innerHTML='';
+  renderBtn.disabled=true;
+  clearBtn.disabled=true;
+  filebtn.value='';
+});
+
+let draggedItem = null;
+function buildOutcomeList(){
+  outsel.innerHTML='';
+  if(!files.length){ renderBtn.disabled=true; clearBtn.disabled=true; return; }
+
+  const ds = files[0]; // just use the first file for KM
+  const keys = Object.keys(ds.outcomes);
+
+  keys.forEach(k=>{
+    const div=document.createElement('div'); div.className='sel-item'; div.draggable=true;
+    div.innerHTML = `<input type="checkbox" value="${k}" checked> <span>${k}</span> <span style="margin-left:auto;color:#ccc;cursor:grab">&#9776;</span>`;
+    div.addEventListener('dragstart', function(e){
+      draggedItem = this;
+      setTimeout(()=>this.classList.add('dragging'),0);
+    });
+    div.addEventListener('dragend', function(){
+      this.classList.remove('dragging');
+      draggedItem = null;
+    });
+    div.addEventListener('dragover', function(e){
+      e.preventDefault();
+      const rect = this.getBoundingClientRect();
+      const mid = rect.top + rect.height/2;
+      if(e.clientY < mid) this.parentNode.insertBefore(draggedItem, this);
+      else this.parentNode.insertBefore(draggedItem, this.nextSibling);
+    });
+    outsel.appendChild(div);
+  });
+  renderBtn.disabled=false;
+  clearBtn.disabled=false;
+}
+
+function selectedOutcomesOrdered(){
+  const boxes = Array.from(outsel.querySelectorAll('input[type=checkbox]'));
+  return boxes.filter(b=>b.checked).map(b=>b.value);
+}
+
+renderBtn.addEventListener('click', renderCombinedKM);
+
+function renderCombinedKM(){
+  host.innerHTML='';
+  if(!files.length) return;
+  const ds = files[0];
+  const selected = selectedOutcomesOrdered();
+  if(!selected.length){ host.innerHTML='<em style="color:#6a7280">Select at least one outcome.</em>'; return; }
+
+  const box = document.createElement('div'); box.className='card';
+  box.innerHTML = '<h2>Combined KM Curves</h2><div class="canvaswrap"><canvas></canvas></div>' +
+  '<div style="display:flex;gap:10px;margin-top:10px;">' +
+    '<button class="btn ghost dl">Download PNG (300 DPI)</button>' +
+    '<button class="btn ghost dl-tiff">Download TIFF (300 DPI)</button>' +
+  '</div>';
+  host.appendChild(box);
+
+  const canvas = box.querySelector('canvas');
+
+  // We need to load all images first to know their dimensions
+  const imgs = [];
+  let loaded = 0;
+
+  if (selected.length === 0) return;
+
+  selected.forEach((outcome, idx) => {
+      const src = ds.outcomes[outcome];
+      const img = new Image();
+      img.onload = () => {
+          loaded++;
+          if (loaded === selected.length) drawCombined(canvas, imgs, box);
+      };
+      img.src = src;
+      imgs.push({ outcome: outcome, img: img, label: String.fromCharCode(65 + idx) }); // A, B, C...
+  });
+}
+
+function drawCombined(canvas, imgs, box) {
+    const padding = 20;
+    const labelSpace = 50;
+    const spacing = 40;
+
+    // Assume all images have the same width. Use the first image width.
+    const imgW = imgs[0].img.width;
+    const imgH = imgs[0].img.height;
+
+    // Canvas dimensions
+    canvas.width = labelSpace + imgW + padding*2;
+    canvas.height = (imgH + spacing) * imgs.length + padding;
+
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 36px Arial';
+    ctx.textBaseline = 'top';
+
+    let y = padding;
+    imgs.forEach(item => {
+        // Draw A, B, C label
+        ctx.fillText(item.label, padding, y);
+
+        // Draw the KM image
+        ctx.drawImage(item.img, labelSpace, y);
+
+        y += imgH + spacing;
+    });
+
+    // Style the canvas on screen to fit width
+    canvas.style.width = '100%';
+    canvas.style.height = 'auto';
+    canvas.style.maxWidth = '1000px';
+
+    // Export buttons
+    box.querySelector('.dl').addEventListener('click', () => {
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = 'combined_km_curves.png';
+        a.click();
+    });
+
+    box.querySelector('.dl-tiff').addEventListener('click', () => {
+        if(window.downloadTiff) {
+          window.downloadTiff(canvas, 'combined_km_curves.tiff', 300);
+        } else {
+          alert('TIFF exporter module not loaded.');
+        }
+    });
+}
+</script>
+</body>
+</html>
