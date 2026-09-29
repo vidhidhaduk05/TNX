@@ -292,11 +292,11 @@ function parseOutcomesText(txt) {
     var kmSec = kapIdx >= 0 ? block.substring(kapIdx) : "";
     // Strip the Risk Analysis table header so the leading outcome number
     // (e.g. "2 Mortality") is not consumed as a cohort number by riskRe
-    var riskHdrRe = /Risk analysis\s+Cohort\s+Patients in cohort\s+Patients with outcome\s+Risk\s+/;
+    var riskHdrRe = /Risk analysis(?: excluding patients with outcome prior to the time window)?\s+Cohort\s+Patients in cohort\s+Patients with outcome\s+Risk\s+/;
     var riskHdr = riskHdrRe.exec(riskSec);
     if (riskHdr) riskSec = riskSec.substring(riskHdr.index + riskHdr[0].length);
     // Strip the KM table header similarly
-    var kmHdrRe = /Kaplan\s*-\s*Meier survival analysis\s+Cohort\s+Patients in cohort\s+Patients with outcome\s+Median survival \(days\)\s+Survival probability at end of time window\s+/;
+    var kmHdrRe = /Kaplan\s*-\s*Meier survival analysis(?: excluding patients with outcome prior to the time window)?\s+Cohort\s+Patients in cohort\s+Patients with outcome\s+Median survival \(days\)\s+Survival probability at end of time window\s+/;
     var kmHdr = kmHdrRe.exec(kmSec);
     if (kmHdr) kmSec = kmSec.substring(kmHdr.index + kmHdr[0].length);
     var rm;
@@ -1259,7 +1259,7 @@ function modelT1(t1, study) {
     }
     rows.push(row);
   }
-  return { title: title, subtitle: subtitle, rows: rows, type: "t1", footnote: "PSM = propensity-score matching; ASD = absolute standardized difference; MMAE = middle meningeal artery embolization; MM = medical management. Values are mean \u00b1 SD or % (n)." };
+  return { title: title, subtitle: subtitle, rows: rows, type: "t1", footnote: "PSM = propensity-score matching; ASD = absolute standardized difference. Values are mean \u00b1 SD or % (n)." };
 }
 
 function modelT2(t2, study) {
@@ -1302,7 +1302,7 @@ function modelT2(t2, study) {
     rows.push(row);
   }
   var _tw = study ? T.timeWindowWords(study) : "Ninety-day";
-  return { title: title, subtitle: subtitle, rows: rows, type: "t2", footnote: "MMAE = middle meningeal artery embolization; MM = medical management; HR = hazard ratio; CI = confidence interval. Values are % (n); event probability rates are " + _tw + " Kaplan-Meier estimates." };
+  return { title: title, subtitle: subtitle, rows: rows, type: "t2", footnote: "HR = hazard ratio; CI = confidence interval. Values are % (n); event probability rates are " + _tw + " Kaplan-Meier estimates." };
 }
 
 function modelS1(s1, study) {
@@ -1335,6 +1335,12 @@ function modelS1(s1, study) {
 }
 
 /* ---------- On-screen rendering ---------- */
+window.updateFootnote = function(el, type) {
+  if (window.parsedStudyModels && window.parsedStudyModels[type]) {
+    window.parsedStudyModels[type].footnote = el.innerText || "";
+  }
+};
+
 function renderModel(model) {
   var html = '<div class="tbl-container">';
   if (model.title) html += '<div class="tbl-title">' + esc(model.title) + '</div>';
@@ -1360,7 +1366,7 @@ function renderModel(model) {
     html += "</tr>";
   }
   html += "</table>";
-  if (model.footnote) html += '<div class="tbl-footnote">' + esc(model.footnote) + '</div>';
+  if (model.footnote) html += '<div class="tbl-footnote" contenteditable="true" spellcheck="false" data-model-type="' + model.type + '" oninput="window.updateFootnote(this, \'' + model.type + '\')" style="outline:none; border-bottom:1px dashed transparent; transition:border-color 0.2s;" onfocus="this.style.borderBottom=\'1px dashed #ccc\'" onblur="this.style.borderBottom=\'1px dashed transparent\'">' + esc(model.footnote) + '</div>';
   html += "</div>";
   return html;
 }
@@ -1971,6 +1977,7 @@ function render(study, t1, t2, s1, changes, gate1, gate2, originalFileName, qcRe
   if (qcResult) html += renderBalanceQC(qcResult);
 
   var m1 = modelT1(t1, study), m2 = modelT2(t2, study), m3 = modelS1(s1, study);
+  window.parsedStudyModels = { t1: m1, t2: m2, s1: m3 };
 
   html += '<div class="card" style="border: 2px solid #000; background: #fafcff;">';
   html += '<div style="font-weight: bold; font-size: 15px; margin-bottom: 6px; color: #000;">Download Standard Word (.docx) Files</div>';
@@ -1993,30 +2000,30 @@ function render(study, t1, t2, s1, changes, gate1, gate2, originalFileName, qcRe
 
   document.getElementById("dlT1T2").addEventListener("click", function () {
     downloadDocxFile([
-      { model: m1, widths: WORD_W.t1 },
-      { model: m2, widths: WORD_W.t2 }
+      { model: window.parsedStudyModels.t1, widths: WORD_W.t1 },
+      { model: window.parsedStudyModels.t2, widths: WORD_W.t2 }
     ], fnT1T2);
   });
 
   document.getElementById("dlS1").addEventListener("click", function () {
     downloadDocxFile([
-      { model: m3, widths: WORD_W.s1 }
+      { model: window.parsedStudyModels.s1, widths: WORD_W.s1 }
     ], fnS1);
   });
 
   document.getElementById("dl1").addEventListener("click", function () {
-    downloadDocxFile([{ model: m1, widths: WORD_W.t1 }], fnT1);
+    downloadDocxFile([{ model: window.parsedStudyModels.t1, widths: WORD_W.t1 }], fnT1);
   });
   document.getElementById("dl2").addEventListener("click", function () {
-    downloadDocxFile([{ model: m2, widths: WORD_W.t2 }], fnT2);
+    downloadDocxFile([{ model: window.parsedStudyModels.t2, widths: WORD_W.t2 }], fnT2);
   });
   document.getElementById("dl3").addEventListener("click", function () {
-    downloadDocxFile([{ model: m3, widths: WORD_W.s1 }], fnS1);
+    downloadDocxFile([{ model: window.parsedStudyModels.s1, widths: WORD_W.s1 }], fnS1);
   });
 
-  document.getElementById("cp1").addEventListener("click", function () { copyTable(this, m1, WORD_W.t1); });
-  document.getElementById("cp2").addEventListener("click", function () { copyTable(this, m2, WORD_W.t2); });
-  document.getElementById("cp3").addEventListener("click", function () { copyTable(this, m3, WORD_W.s1); });
+  document.getElementById("cp1").addEventListener("click", function () { copyTable(this, window.parsedStudyModels.t1, WORD_W.t1); });
+  document.getElementById("cp2").addEventListener("click", function () { copyTable(this, window.parsedStudyModels.t2, WORD_W.t2); });
+  document.getElementById("cp3").addEventListener("click", function () { copyTable(this, window.parsedStudyModels.s1, WORD_W.s1); });
 }
 
 // Build the three Word tables (as {model,widths} lists) for one parsed study.
