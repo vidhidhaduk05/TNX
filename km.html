@@ -368,7 +368,7 @@ function drawCombined(canvas, imgs, box) {
     imgs.forEach(item => {
         // Draw A, B, C label and outcome name
         ctx.font = 'bold 36px "Times New Roman", Times, serif';
-        const fullLabel = item.label + " - " + item.outcome.toUpperCase();
+        const fullLabel = item.label + " - " + item.outcome.charAt(0).toUpperCase() + item.outcome.slice(1).toLowerCase();
 
         ctx.fillText(fullLabel, padding, y);
 
