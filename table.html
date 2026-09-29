@@ -292,11 +292,11 @@ function parseOutcomesText(txt) {
     var kmSec = kapIdx >= 0 ? block.substring(kapIdx) : "";
     // Strip the Risk Analysis table header so the leading outcome number
     // (e.g. "2 Mortality") is not consumed as a cohort number by riskRe
-    var riskHdrRe = /Risk analysis(?: excluding patients with outcome prior to the time window)?\s+Cohort\s+Patients in cohort\s+Patients with outcome\s+Risk\s+/;
+    var riskHdrRe = /Risk analysis(?: (?:including|excluding) patients with outcome prior to the time window)?\s+Cohort\s+Patients in cohort\s+Patients with outcome\s+Risk\s+/;
     var riskHdr = riskHdrRe.exec(riskSec);
     if (riskHdr) riskSec = riskSec.substring(riskHdr.index + riskHdr[0].length);
     // Strip the KM table header similarly
-    var kmHdrRe = /Kaplan\s*-\s*Meier survival analysis(?: excluding patients with outcome prior to the time window)?\s+Cohort\s+Patients in cohort\s+Patients with outcome\s+Median survival \(days\)\s+Survival probability at end of time window\s+/;
+    var kmHdrRe = /Kaplan\s*-\s*Meier survival analysis(?: (?:including|excluding) patients with outcome prior to the time window)?\s+Cohort\s+Patients in cohort\s+Patients with outcome\s+Median survival \(days\)\s+Survival probability at end of time window\s+/;
     var kmHdr = kmHdrRe.exec(kmSec);
     if (kmHdr) kmSec = kmSec.substring(kmHdr.index + kmHdr[0].length);
     var rm;
