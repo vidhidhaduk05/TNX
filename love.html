@@ -1074,8 +1074,19 @@ function renderDiagnostics() {
   parsedData.rows.forEach((r, i) => {
     const tr = document.createElement("tr");
     const fmt = v => Number.isNaN(v) ? "—" : v.toFixed(3);
-    tr.innerHTML = `<td style="text-align:center;width:34px;"><input type="checkbox" class="cov-check" data-idx="${i}" checked style="cursor:pointer;transform:scale(1.15);"></td><td class="cov-label-td"></td><td class="num">${fmt(r.ASD_before)}</td><td class="num">${r.hollow ? "masked" : fmt(r.ASD_after)}</td><td>${r.hollow ? "◌ hollow" : ""}</td>`;
-    tr.children[1].textContent = r.label;
+    tr.innerHTML = `<td style="text-align:center;width:34px;"><input type="checkbox" class="cov-check" data-idx="${i}" checked style="cursor:pointer;transform:scale(1.15);"></td><td class="cov-label-td"><input type="text" class="cov-label-input" value="${r.label.replace(/"/g, '&quot;')}" data-idx="${i}" style="width:100%; border:1px solid transparent; background:transparent; font-family:inherit; font-size:inherit; padding:2px; border-radius:3px;"></td><td class="num">${fmt(r.ASD_before)}</td><td class="num">${r.hollow ? "masked" : fmt(r.ASD_after)}</td><td>${r.hollow ? "◌ hollow" : ""}</td>`;
+    tr.querySelector('.cov-label-input').addEventListener('input', (e) => {
+      parsedData.rows[i].label = e.target.value;
+      renderPlot();
+    });
+    tr.querySelector('.cov-label-input').addEventListener('focus', (e) => {
+      e.target.style.border = '1px solid #ccc';
+      e.target.style.background = '#fff';
+    });
+    tr.querySelector('.cov-label-input').addEventListener('blur', (e) => {
+      e.target.style.border = '1px solid transparent';
+      e.target.style.background = 'transparent';
+    });
     tb.appendChild(tr);
   });
   const toggleAll = $("toggleAll");
