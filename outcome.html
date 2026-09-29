@@ -682,7 +682,10 @@ chkwrapEl().addEventListener('drop', e=>{
 });
 function chkwrapEl(){ return document.getElementById('chkwrap'); }
 
+
 /* ---------------- chart rendering ---------------- */
+Chart.defaults.font.family = '"Times New Roman", Times, serif';
+
 document.getElementById('render').addEventListener('click', renderCharts);
 document.getElementById('clear').addEventListener('click', ()=>{
   files=[]; charts.forEach(c=>c.destroy()); charts=[];
