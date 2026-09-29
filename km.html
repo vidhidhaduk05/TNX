@@ -367,11 +367,10 @@ function drawCombined(canvas, imgs, box) {
     let y = padding;
     imgs.forEach(item => {
         // Draw A, B, C label and outcome name
-        ctx.font = 'bold 36px Arial';
-        ctx.fillText(item.label, padding, y);
+        ctx.font = 'bold 36px "Times New Roman", Times, serif';
+        const fullLabel = item.label + " - " + item.outcome.toUpperCase();
 
-        ctx.font = 'bold 24px Arial';
-        ctx.fillText(item.outcome, labelSpace, y + 8);
+        ctx.fillText(fullLabel, padding, y);
 
         // Draw the KM image below the title
         ctx.drawImage(item.img, labelSpace, y + titleHeight);
