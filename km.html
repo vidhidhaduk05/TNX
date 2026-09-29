@@ -347,6 +347,7 @@ function drawCombined(canvas, imgs, box) {
     const padding = 20;
     const labelSpace = 50;
     const spacing = 40;
+    const titleHeight = 50; // Space above the image for the title
 
     // Assume all images have the same width. Use the first image width.
     const imgW = imgs[0].img.width;
@@ -354,25 +355,28 @@ function drawCombined(canvas, imgs, box) {
 
     // Canvas dimensions
     canvas.width = labelSpace + imgW + padding*2;
-    canvas.height = (imgH + spacing) * imgs.length + padding;
+    canvas.height = (imgH + titleHeight + spacing) * imgs.length + padding;
 
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.fillStyle = '#000000';
-    ctx.font = 'bold 36px Arial';
     ctx.textBaseline = 'top';
 
     let y = padding;
     imgs.forEach(item => {
-        // Draw A, B, C label
+        // Draw A, B, C label and outcome name
+        ctx.font = 'bold 36px Arial';
         ctx.fillText(item.label, padding, y);
 
-        // Draw the KM image
-        ctx.drawImage(item.img, labelSpace, y);
+        ctx.font = 'bold 24px Arial';
+        ctx.fillText(item.outcome, labelSpace, y + 8);
 
-        y += imgH + spacing;
+        // Draw the KM image below the title
+        ctx.drawImage(item.img, labelSpace, y + titleHeight);
+
+        y += imgH + titleHeight + spacing;
     });
 
     // Style the canvas on screen to fit width
